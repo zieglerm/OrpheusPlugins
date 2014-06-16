@@ -42,27 +42,13 @@ allprojects {
 ext.compileSdkVersion = 19
 ext.buildToolsVersion  = "19.1.0"
 
-// Versioning
-def versionMajor = 0
-def versionMinor = 1
-def versionPatch = 0
-def versionBuild = 0 // bump for dogfood builds, public betas, etc.
-
-assert(versionMinor < 100) // Double digits
-assert(versionPatch < 100) // Double digits
-assert(versionBuild < 100) // Double digits
-
 // defaultConfig
-ext.minSdkVersion = 14
 ext.targetSdkVersion = 19
-ext.versionCode = versionMajor * 1000000 + versionMinor * 10000 + versionPatch * 100 + versionBuild
-ext.versionName = String.format("%d.%d.%d", versionMajor, versionMinor, versionPatch)
 
 def gitSha() {
     return 'git rev-parse --short HEAD'.execute().text.trim()
 }
 
 def getDebugVersionSuffix() {
-    // When building with Android Studio gitSha() is null;
     return "${gitSha()}".isEmpty() ? "-SNAPSHOT" : "-SNAPSHOT-${gitSha()}"
 }
