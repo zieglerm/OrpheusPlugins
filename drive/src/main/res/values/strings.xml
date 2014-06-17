@@ -19,6 +19,7 @@
 <resources>
 
     <string name="app_name">Orpheus Drive Plugin</string>
-    <string name="app_description">Drive library plugin</string>
+    <string name="plugin_name">Drive</string>
+    <string name="plugin_description">Drive library plugin</string>
 
 </resources>
