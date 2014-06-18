@@ -83,18 +83,18 @@ public class DriveLibraryService extends RemoteLibraryService {
      */
 
     @Override
-    protected int getCapabilities() {
+    protected int getCapabilities() throws RemoteException {
         return BROWSE_FOLDERS;
     }
 
     @Override
-    protected Intent getLibraryChooserIntent() {
+    protected Intent getLibraryChooserIntent() throws RemoteException {
         return new Intent(this, LibraryChooserActivity.class);
     }
 
     @Override
     @DebugLog
-    protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final FolderBrowseResult cb) {
+    protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final FolderBrowseResult cb) throws RemoteException {
         mDrive.setAccountName(libraryIdentity);
         final String fID;
         if (TextUtils.isEmpty(folderIdentity)) {
@@ -171,12 +171,12 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     @Override
-    protected void queryArtists(String libraryIdentity, int maxResults, Bundle paginationBundle, ArtistQueryResult cb) {
+    protected void queryArtists(String libraryIdentity, int maxResults, Bundle paginationBundle, ArtistQueryResult cb) throws RemoteException {
 
     }
 
     @Override
-    protected void queryAlbums(String libraryIdentity, int maxResults, Bundle paginationBundle, AlbumQueryResult cb) {
+    protected void queryAlbums(String libraryIdentity, int maxResults, Bundle paginationBundle, AlbumQueryResult cb) throws RemoteException {
 
     }
 

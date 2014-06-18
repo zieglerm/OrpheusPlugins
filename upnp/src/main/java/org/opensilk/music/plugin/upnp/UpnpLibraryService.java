@@ -41,6 +41,7 @@ import org.fourthline.cling.support.model.DIDLObject;
 import org.fourthline.cling.support.model.container.Container;
 import org.fourthline.cling.support.model.container.MusicAlbum;
 import org.fourthline.cling.support.model.container.MusicArtist;
+import org.fourthline.cling.support.model.item.AudioItem;
 import org.fourthline.cling.support.model.item.Item;
 import org.fourthline.cling.support.model.item.MusicTrack;
 import org.opensilk.music.api.RemoteLibraryService;
@@ -52,6 +53,9 @@ import org.opensilk.music.api.model.Album;
 import org.opensilk.music.api.model.Artist;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
+import org.opensilk.upnp.contentdirectory.Feature;
+import org.opensilk.upnp.contentdirectory.Features;
+import org.opensilk.upnp.contentdirectory.callback.GetFeatureList;
 import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
 
 import java.net.URI;
@@ -89,99 +93,29 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
      */
 
     @Override
-    protected int getCapabilities() {
+    protected int getCapabilities() throws RemoteException {
         return BROWSE_FOLDERS|QUERY_ARTISTS|QUERY_ALBUMS;
     }
 
     @Override
-    protected Intent getLibraryChooserIntent() {
+    protected Intent getLibraryChooserIntent() throws RemoteException {
         return new Intent(this, LibraryPickerActivity.class);
     }
 
     @Override
-    protected void browseFolders(String sourceIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final FolderBrowseResult cb) {
-        if (mUpnpService != null) {
-            final String fId;
+    protected void browseFolders(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, FolderBrowseResult cb) throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        RemoteService rs = acquireContentDirectoryService(libraryIdentity);
+        if (rs != null) {
+            // Requested root folder, lets see if there is a music only virtual folder
             if (TextUtils.isEmpty(folderIdentity)) {
-                fId = "0";
+                requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, cb));
             } else {
-                fId = folderIdentity;
+                doBrowse(rs, folderIdentity, maxResults, paginationBundle, cb);
             }
-            final int start;
-            if (paginationBundle != null) {
-                start = paginationBundle.getInt("start");
-            } else {
-                start = 0;
-            }
-            final RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(sourceIdentity), false);
-            if (rd != null) {
-                final RemoteService rs = rd.findService(new UDAServiceType("ContentDirectory", 1));
-                if (rs != null) {
-                    final Browse browse = new Browse(rs, fId, BrowseFlag.DIRECT_CHILDREN, "*", start, (long)maxResults, null) {
-                        @Override
-                        @DebugLog
-                        public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
-
-                            final List<Container> containers = didlContent.getContainers();
-                            final List<Folder> folders = new ArrayList<>(containers.size());
-                            for (Container c : containers) {
-                                final String id = c.getId();
-                                final String name = c.getTitle();
-                                final String parentId = c.getParentID();
-                                folders.add(new Folder(id, name, parentId));
-                            }
-
-                            final List<Item> items = didlContent.getItems();
-                            final List<Song> songs = new ArrayList<>(items.size());
-                            for (Item item : items) {
-                                if (MusicTrack.CLASS.equals(item)) {
-                                    MusicTrack mt = (MusicTrack) item;
-                                    final String id = mt.getId();
-                                    final String n = mt.getTitle();
-                                    final String aln = mt.getAlbum();
-                                    final String arn = mt.getFirstArtist().getName();
-                                    final int dur = parseDuration(mt.getFirstResource().getDuration());
-                                    final Uri u = Uri.parse(mt.getFirstResource().getValue());
-                                    final URI au = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
-                                    final Uri u2 = au != null ? Uri.parse(au.toASCIIString()) : Uri.EMPTY;
-                                    songs.add(new Song(id, n, aln, arn, dur, u, u2));
-                                }
-                            }
-                            //TODO
-//                            int totolMatches = (int)(actionInvocation.getOutput("TotalMatches").getValue());
-                            final Bundle b;
-//                            if (totolMatches > start+maxResults) {
-                                b = new Bundle(1);
-                                b.putInt("start", start+maxResults);
-//                            } else {
-//                                b = null;
-//                            }
-                            try {
-                                cb.success(folders, songs, b);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                        @Override
-                        public void updateStatus(Status status) {
-
-                        }
-
-                        @Override
-                        @DebugLog
-                        public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
-                            try {
-                                cb.failure(s);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    mUpnpService.getControlPoint().execute(browse);
-                    return;
-                }
-            }
+            return;
         }
         try {
             cb.failure("Unknown Error");
@@ -191,61 +125,14 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     }
 
     @Override
-    protected void queryArtists(String libraryIdentity, int maxResults, Bundle paginationBundle, final ArtistQueryResult cb) {
-        if (mUpnpService != null) {
-            int start = 0;
-            if (paginationBundle != null) {
-                start = paginationBundle.getInt("start");
-            }
-            final Bundle resultBundle = new Bundle(1);
-            resultBundle.putInt("start", start+maxResults);
-            final RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(libraryIdentity), false);
-            if (rd != null) {
-                final RemoteService rs = rd.findService(new UDAServiceType("ContentDirectory", 1));
-                if (rs != null) {
-                    final Search search = new Search(rs, "0",
-                            "upnp:class = \"object.container.person.musicArtist\"",
-                            "*", start, (long)maxResults, null) {
-                        @Override
-                        @DebugLog
-                        public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
-                            final List<Artist> artists = new ArrayList<>(didlContent.getContainers().size());
-                            for (Container c : didlContent.getContainers()) {
-                                if (MusicArtist.CLASS.equals(c)) {
-                                    MusicArtist ma = (MusicArtist) c;
-                                    final String id= ma.getId();
-                                    final String n = ma.getTitle();
-                                    final int an = ma.getChildCount();
-                                    Timber.d(n + "," + ma.getChildCount() + "," + ma.getContainers().size() + "," + ma.getItems().size());
-                                    artists.add(new Artist(id, n, 0, 0));
-                                }
-                            }
-                            try {
-                                cb.success(artists, resultBundle);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                        @Override
-                        public void updateStatus(Status status) {
-
-                        }
-
-                        @Override
-                        @DebugLog
-                        public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
-                            try {
-                                cb.failure(s);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    mUpnpService.getControlPoint().execute(search);
-                    return;
-                }
-            }
+    protected void queryArtists(String libraryIdentity, int maxResults, Bundle paginationBundle, ArtistQueryResult cb) throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        RemoteService rs = acquireContentDirectoryService(libraryIdentity);
+        if (rs != null) {
+            requestFeatures(rs, new ArtistSearchCommand(rs, maxResults, paginationBundle, cb));
+            return;
         }
         try {
             cb.failure("Unknown error");
@@ -255,62 +142,14 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     }
 
     @Override
-    protected void queryAlbums(String libraryIdentity, int maxResults, Bundle paginationBundle, final AlbumQueryResult cb) {
-        if (mUpnpService != null) {
-            int start = 0;
-            if (paginationBundle != null) {
-                start = paginationBundle.getInt("start");
-            }
-            final Bundle resultBundle = new Bundle(1);
-            resultBundle.putInt("start", start+maxResults);
-            final RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(libraryIdentity), false);
-            if (rd != null) {
-                final RemoteService rs = rd.findService(new UDAServiceType("ContentDirectory", 1));
-                if (rs != null) {
-                    final Search search = new Search(rs, "0",
-                            "upnp:class = \"object.container.album.musicAlbum\"",
-                            "*", start, (long)maxResults, null) {
-                        @Override
-                        @DebugLog
-                        public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
-                            final List<Album> albums = new ArrayList<>();
-                            for (Container c : didlContent.getContainers()) {
-                                if (MusicAlbum.CLASS.equals(c)) {
-                                    MusicAlbum ma = (MusicAlbum) c;
-                                    final String id = ma.getId();
-                                    final String n1 = ma.getTitle();
-                                    final String n2 = ma.getFirstArtist().getName();
-                                    //final String date = ma.getDate();
-                                    final Uri uri = Uri.parse(ma.getFirstAlbumArtURI().toASCIIString());
-                                    albums.add(new Album(id, n1, n2, uri));
-                                }
-                            }
-                            try {
-                                cb.success(albums, resultBundle);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                        @Override
-                        public void updateStatus(Status status) {
-
-                        }
-
-                        @Override
-                        @DebugLog
-                        public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
-                            try {
-                                cb.failure(s);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    };
-                    mUpnpService.getControlPoint().execute(search);
-                    return;
-                }
-            }
+    protected void queryAlbums(String libraryIdentity, int maxResults, Bundle paginationBundle, AlbumQueryResult cb) throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        RemoteService rs = acquireContentDirectoryService(libraryIdentity);
+        if (rs != null) {
+            requestFeatures(rs, new AlbumSearchCommand(rs, maxResults, paginationBundle, cb));
+            return;
         }
         try {
             cb.failure("Unknown Error");
@@ -368,7 +207,36 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         //TODO failure
     }
 
-    //TODO fixme do a better job here
+    /*
+     * Service Connection
+     */
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        mUpnpService = (AndroidUpnpService) service;
+        if (mUpnpService != null) {
+            mUpnpService.getControlPoint().search();
+        }
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        mUpnpService = null;
+//        bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
+    }
+
+    private RemoteService acquireContentDirectoryService(String deviceIdentity) {
+        RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(deviceIdentity), false);
+        if (rd != null) {
+            RemoteService rs = rd.findService(new UDAServiceType("ContentDirectory", 1));
+            if (rs != null) {
+                return rs;
+            }
+        }
+        return null;
+    }
+
+    //FIXME this is utter shit
     private static int parseDuration(String duration) {
         int dur = 0;
         try {
@@ -394,22 +262,292 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         return dur;
     }
 
-    /*
-     * Service Connection
-     */
+    private void requestFeatures(RemoteService service, final Command command) {
+        GetFeatureList req = new GetFeatureList(service) {
+            @Override
+            public void received(ActionInvocation actionInvocation, Features features) {
+                command.execute(features);
+            }
 
-    @Override
-    public void onServiceConnected(ComponentName name, IBinder service) {
-        mUpnpService = (AndroidUpnpService) service;
+            @Override
+            public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
+                command.execute(null);
+            }
+        };
         if (mUpnpService != null) {
-            mUpnpService.getControlPoint().search();
+            mUpnpService.getControlPoint().execute(req);
         }
     }
 
-    @Override
-    public void onServiceDisconnected(ComponentName name) {
-        mUpnpService = null;
-//        bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
+    private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final FolderBrowseResult cb) {
+        final int start;
+        if (paginationBundle != null) {
+            start = paginationBundle.getInt("start");
+        } else {
+            start = 0;
+        }
+
+        final Browse browse = new Browse(rs, folderIdentity, BrowseFlag.DIRECT_CHILDREN, "*", start, (long)maxResults, null) {
+            @Override
+            @DebugLog
+            public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
+
+                final List<Container> containers = didlContent.getContainers();
+                final List<Folder> folders = new ArrayList<>(containers.size());
+                for (Container c : containers) {
+                    final String id = c.getId();
+                    final String name = c.getTitle();
+                    final String parentId = c.getParentID();
+                    folders.add(new Folder(id, name, parentId));
+                }
+
+                final List<Item> items = didlContent.getItems();
+                final List<Song> songs = new ArrayList<>(items.size());
+                for (Item item : items) {
+                    if (MusicTrack.CLASS.equals(item)) {
+                        MusicTrack mt = (MusicTrack) item;
+                        final String id = mt.getId();
+                        final String n = mt.getTitle();
+                        final String aln = mt.getAlbum();
+                        final String arn = mt.getFirstArtist().getName();
+                        final int dur = parseDuration(mt.getFirstResource().getDuration());
+                        final Uri u = Uri.parse(mt.getFirstResource().getValue());
+                        final URI au = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
+                        final Uri u2 = au != null ? Uri.parse(au.toASCIIString()) : Uri.EMPTY;
+                        songs.add(new Song(id, n, aln, arn, dur, u, u2));
+                    }
+                }
+
+                //TODO how to check no more results?
+                final Bundle b = new Bundle(1);
+                b.putInt("start", start+maxResults);
+
+                try {
+                    cb.success(folders, songs, b);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void updateStatus(Status status) {
+
+            }
+
+            @Override
+            @DebugLog
+            public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
+                try {
+                    cb.failure(s);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        if (mUpnpService != null) {
+            mUpnpService.getControlPoint().execute(browse);
+        }
+    }
+
+    private void doArtistSearch(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final ArtistQueryResult cb) {
+        final int start;
+        if (paginationBundle != null) {
+            start = paginationBundle.getInt("start");
+        } else {
+            start = 0;
+        }
+
+        final Search search = new Search(rs, folderIdentity,
+                "upnp:class = \"object.container.person.musicArtist\"",
+                "*", start, (long)maxResults, null) {
+            @Override
+            @DebugLog
+            public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
+                final List<Artist> artists = new ArrayList<>(didlContent.getContainers().size());
+                for (Container c : didlContent.getContainers()) {
+                    if (MusicArtist.CLASS.equals(c)) {
+                        MusicArtist ma = (MusicArtist) c;
+                        final String id= ma.getId();
+                        final String n = ma.getTitle();
+                        Timber.d(n + "," + ma.getChildCount() + "," + ma.getContainers().size() + "," + ma.getItems().size());
+                        artists.add(new Artist(id, n, 0, 0));
+                    }
+                }
+
+                // Todo check no more results
+                final Bundle resultBundle = new Bundle(1);
+                resultBundle.putInt("start", start+maxResults);
+
+                try {
+                    cb.success(artists, resultBundle);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void updateStatus(Status status) {
+
+            }
+
+            @Override
+            @DebugLog
+            public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
+                try {
+                    cb.failure(s);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+
+        if (mUpnpService != null) {
+            mUpnpService.getControlPoint().execute(search);
+        }
+    }
+
+    private void doAlbumSearch(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final AlbumQueryResult cb) {
+        final int start;
+        if (paginationBundle != null) {
+            start = paginationBundle.getInt("start");
+        } else {
+            start = 0;
+        }
+
+        final Search search = new Search(rs, folderIdentity,
+                "upnp:class = \"object.container.album.musicAlbum\"",
+                "*", start, (long)maxResults, null) {
+            @Override
+            @DebugLog
+            public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
+                final List<Album> albums = new ArrayList<>();
+                for (Container c : didlContent.getContainers()) {
+                    if (MusicAlbum.CLASS.equals(c)) {
+                        MusicAlbum ma = (MusicAlbum) c;
+                        final String id = ma.getId();
+                        final String n1 = ma.getTitle();
+                        final String n2 = ma.getFirstArtist().getName();
+                        //final String date = ma.getDate();
+                        final Uri uri = Uri.parse(ma.getFirstAlbumArtURI().toASCIIString());
+                        albums.add(new Album(id, n1, n2, uri));
+                    }
+                }
+
+                //TODO check no more results
+                final Bundle resultBundle = new Bundle(1);
+                resultBundle.putInt("start", start+maxResults);
+
+                try {
+                    cb.success(albums, resultBundle);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void updateStatus(Status status) {
+
+            }
+
+            @Override
+            @DebugLog
+            public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
+                try {
+                    cb.failure(s);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        if (mUpnpService != null) {
+            mUpnpService.getControlPoint().execute(search);
+        }
+    }
+
+
+    interface Command {
+        void execute(Object data);
+    }
+
+    abstract class UpnpCommand implements Command {
+        final RemoteService service;
+        final int maxResults;
+        final Bundle paginationBudle;
+
+        UpnpCommand(RemoteService service, final int maxResults, Bundle paginationBundle) {
+            this.service = service;
+            this.maxResults = maxResults;
+            this.paginationBudle = paginationBundle;
+        }
+
+        @Override
+        public void execute(Object data) {
+            String fId = null;
+            if (data != null) {
+                Features features = (Features) data;
+                Feature feature = features.getFeature(Feature.SEC_BASICVIEW, 1);
+                if (feature != null) {
+                    String id = feature.getContainerIdOf(AudioItem.CLASS);
+                    if (id != null) {
+                        fId = id;
+                    }
+                }
+            }
+            if (fId == null) {
+                fId = "0";
+            }
+            doExecute(fId);
+        }
+
+        abstract void doExecute(String folderIdentity);
+    }
+
+    class BrowseCommand extends UpnpCommand {
+
+        final FolderBrowseResult callback;
+
+        BrowseCommand(RemoteService service, int maxResults, Bundle paginationBundle, FolderBrowseResult cb) {
+            super(service, maxResults, paginationBundle);
+            this.callback = cb;
+        }
+
+        @Override
+        void doExecute(String folderIdentity) {
+            doBrowse(service, folderIdentity, maxResults, paginationBudle, callback);
+        }
+
+
+    }
+
+    class ArtistSearchCommand extends UpnpCommand {
+
+        final ArtistQueryResult callback;
+
+        ArtistSearchCommand(RemoteService service, int maxResults, Bundle paginationBundle, ArtistQueryResult cb) {
+            super(service, maxResults, paginationBundle);
+            this.callback = cb;
+        }
+
+        @Override
+        void doExecute(String folderIdentity) {
+            doArtistSearch(service, folderIdentity, maxResults, paginationBudle, callback);
+        }
+
+    }
+
+    class AlbumSearchCommand extends UpnpCommand {
+
+        final AlbumQueryResult callback;
+
+        AlbumSearchCommand(RemoteService service, int maxResults, Bundle paginationBundle, AlbumQueryResult cb) {
+            super(service, maxResults, paginationBundle);
+            this.callback = cb;
+        }
+
+        @Override
+        void doExecute(String folderIdentity) {
+            doAlbumSearch(service, folderIdentity, maxResults, paginationBudle, callback);
+        }
     }
 
 }

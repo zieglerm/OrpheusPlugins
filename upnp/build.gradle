@@ -100,4 +100,9 @@ dependencies {
     compile 'org.eclipse.jetty:jetty-client:8.1.15.v20140411'//8.1.8.v20121106'
 
     compile project(':../OrpheusApi:api')
+
+//    compile 'commons-lang:commons-lang:2.3'
+    compile 'org.seamless:seamless-xml:1.0-alpha3'
+    compile 'org.apache.commons:commons-lang3:3.3.2'
+
 }

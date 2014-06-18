@@ -42,6 +42,9 @@ public class UpnpApp extends Application {
             // enable logging as needed for various categories of Cling:
             Logger.getLogger("org.fourthline.cling").setLevel(Level.FINE);
             Logger.getLogger("org.fourthline.cling.transport.spi.DatagramProcessor").setLevel(Level.INFO);
+            Logger.getLogger("org.fourthline.cling.protocol.ProtocolFactory").setLevel(Level.INFO);
+            Logger.getLogger("org.fourthline.cling.model.message.UpnpHeaders").setLevel(Level.INFO);
+//            Logger.getLogger("org.fourthline.cling.transport.spi.SOAPActionProcessor").setLevel(Level.FINER);
 
             // Plant the forest
             Timber.plant(new Timber.DebugTree());

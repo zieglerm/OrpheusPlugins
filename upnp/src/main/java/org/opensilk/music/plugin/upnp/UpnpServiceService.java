@@ -17,11 +17,19 @@
 
 package org.opensilk.music.plugin.upnp;
 
+import org.apache.commons.lang3.StringUtils;
 import org.fourthline.cling.UpnpServiceConfiguration;
 import org.fourthline.cling.android.AndroidUpnpServiceConfiguration;
 import org.fourthline.cling.android.AndroidUpnpServiceImpl;
+import org.fourthline.cling.model.UnsupportedDataException;
+import org.fourthline.cling.model.action.ActionInvocation;
+import org.fourthline.cling.model.message.control.ActionResponseMessage;
 import org.fourthline.cling.model.types.ServiceType;
 import org.fourthline.cling.model.types.UDAServiceType;
+import org.fourthline.cling.transport.impl.RecoveringSOAPActionProcessorImpl;
+import org.fourthline.cling.transport.spi.SOAPActionProcessor;
+
+import hugo.weaving.DebugLog;
 
 /**
  * Created by drew on 6/8/14.
@@ -35,6 +43,24 @@ public class UpnpServiceService extends AndroidUpnpServiceImpl {
             public ServiceType[] getExclusiveServiceTypes() {
                 return new ServiceType[] {
                         new UDAServiceType("ContentDirectory", 1)
+                };
+            }
+
+            @Override
+            protected SOAPActionProcessor createSOAPActionProcessor() {
+                return new RecoveringSOAPActionProcessorImpl() {
+                    @Override
+                    @DebugLog
+                    public void readBody(ActionResponseMessage responseMsg, ActionInvocation actionInvocation) throws UnsupportedDataException {
+                        try {
+                            super.readBody(responseMsg, actionInvocation);
+                        } catch (Exception e) {
+                            //Hack for X_GetFeatureList embedding this in the body
+                            String fixedBody = StringUtils.remove(getMessageBody(responseMsg),"<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+                            responseMsg.setBody(fixedBody);
+                            super.readBody(responseMsg, actionInvocation);
+                        }
+                    }
                 };
             }
 
