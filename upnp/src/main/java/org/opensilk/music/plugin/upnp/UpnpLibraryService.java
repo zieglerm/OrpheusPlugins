@@ -49,10 +49,12 @@ import org.opensilk.music.api.callback.AlbumBrowseResult;
 import org.opensilk.music.api.callback.AlbumQueryResult;
 import org.opensilk.music.api.callback.ArtistQueryResult;
 import org.opensilk.music.api.callback.FolderBrowseResult;
+import org.opensilk.music.api.callback.SongQueryResult;
 import org.opensilk.music.api.model.Album;
 import org.opensilk.music.api.model.Artist;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
+import org.opensilk.music.plugin.upnp.util.Helpers;
 import org.opensilk.upnp.contentdirectory.Feature;
 import org.opensilk.upnp.contentdirectory.Features;
 import org.opensilk.upnp.contentdirectory.callback.GetFeatureList;
@@ -68,6 +70,7 @@ import timber.log.Timber;
 import static org.opensilk.music.api.Api.Ability.BROWSE_FOLDERS;
 import static org.opensilk.music.api.Api.Ability.QUERY_ALBUMS;
 import static org.opensilk.music.api.Api.Ability.QUERY_ARTISTS;
+import static org.opensilk.music.api.Api.Ability.QUERY_SONGS;
 
 /**
  * Created by drew on 6/8/14.
@@ -94,7 +97,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     @Override
     protected int getCapabilities() throws RemoteException {
-        return BROWSE_FOLDERS|QUERY_ARTISTS|QUERY_ALBUMS;
+        return BROWSE_FOLDERS|QUERY_ARTISTS|QUERY_ALBUMS|QUERY_SONGS;
     }
 
     @Override
@@ -153,6 +156,23 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         }
         try {
             cb.failure("Unknown Error");
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void querySongs(String libraryIdentity, int maxResults, Bundle paginationBundle, SongQueryResult cb) throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        RemoteService rs = acquireContentDirectoryService(libraryIdentity);
+        if (rs != null) {
+            requestFeatures(rs, new SongSearchCommand(rs, maxResults, paginationBundle, cb));
+            return;
+        }
+        try {
+            cb.failure("Unknow Error");
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -295,10 +315,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 final List<Container> containers = didlContent.getContainers();
                 final List<Folder> folders = new ArrayList<>(containers.size());
                 for (Container c : containers) {
-                    final String id = c.getId();
-                    final String name = c.getTitle();
-                    final String parentId = c.getParentID();
-                    folders.add(new Folder(id, name, parentId));
+                    Folder f = Helpers.parseFolder(c);
+                    folders.add(f);
                 }
 
                 final List<Item> items = didlContent.getItems();
@@ -306,15 +324,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 for (Item item : items) {
                     if (MusicTrack.CLASS.equals(item)) {
                         MusicTrack mt = (MusicTrack) item;
-                        final String id = mt.getId();
-                        final String n = mt.getTitle();
-                        final String aln = mt.getAlbum();
-                        final String arn = mt.getFirstArtist().getName();
-                        final int dur = parseDuration(mt.getFirstResource().getDuration());
-                        final Uri u = Uri.parse(mt.getFirstResource().getValue());
-                        final URI au = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
-                        final Uri u2 = au != null ? Uri.parse(au.toASCIIString()) : Uri.EMPTY;
-                        songs.add(new Song(id, n, aln, arn, dur, u, u2));
+                        Song s = Helpers.parseSong(mt);
+                        songs.add(s);
                     }
                 }
 
@@ -367,10 +378,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 for (Container c : didlContent.getContainers()) {
                     if (MusicArtist.CLASS.equals(c)) {
                         MusicArtist ma = (MusicArtist) c;
-                        final String id= ma.getId();
-                        final String n = ma.getTitle();
-                        Timber.d(n + "," + ma.getChildCount() + "," + ma.getContainers().size() + "," + ma.getItems().size());
-                        artists.add(new Artist(id, n, 0, 0));
+                        Artist a = Helpers.parseArtist(ma);
+                        artists.add(a);
                     }
                 }
 
@@ -424,12 +433,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 for (Container c : didlContent.getContainers()) {
                     if (MusicAlbum.CLASS.equals(c)) {
                         MusicAlbum ma = (MusicAlbum) c;
-                        final String id = ma.getId();
-                        final String n1 = ma.getTitle();
-                        final String n2 = ma.getFirstArtist().getName();
-                        //final String date = ma.getDate();
-                        final Uri uri = Uri.parse(ma.getFirstAlbumArtURI().toASCIIString());
-                        albums.add(new Album(id, n1, n2, uri));
+                        Album a = Helpers.parseAlbum(ma);
+                        albums.add(a);
                     }
                 }
 
@@ -439,6 +444,60 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
                 try {
                     cb.success(albums, resultBundle);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void updateStatus(Status status) {
+
+            }
+
+            @Override
+            @DebugLog
+            public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
+                try {
+                    cb.failure(s);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        if (mUpnpService != null) {
+            mUpnpService.getControlPoint().execute(search);
+        }
+    }
+
+    private void doSongSearch(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final SongQueryResult cb) {
+        final int start;
+        if (paginationBundle != null) {
+            start = paginationBundle.getInt("start");
+        } else {
+            start = 0;
+        }
+
+        final Search search = new Search(rs, folderIdentity,
+                "upnp:class = \"object.item.audioItem.musicTrack\"",
+                "*", start, (long)maxResults, null) {
+            @Override
+            @DebugLog
+            public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
+                final List<Song> songs = new ArrayList<>();
+                for (Item item : didlContent.getItems()) {
+                    if (MusicTrack.CLASS.equals(item)) {
+                        MusicTrack mt = (MusicTrack) item;
+                        Song s = Helpers.parseSong(mt);
+                        songs.add(s);
+                    }
+                }
+
+                //TODO check no more results
+                final Bundle resultBundle = new Bundle(1);
+                resultBundle.putInt("start", start+maxResults);
+
+                try {
+                    cb.success(songs, resultBundle);
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
@@ -547,6 +606,21 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         @Override
         void doExecute(String folderIdentity) {
             doAlbumSearch(service, folderIdentity, maxResults, paginationBudle, callback);
+        }
+    }
+
+    class SongSearchCommand extends UpnpCommand {
+
+        final SongQueryResult callback;
+
+        SongSearchCommand(RemoteService service, int maxResults, Bundle paginationBundle, SongQueryResult cb) {
+            super(service, maxResults, paginationBundle);
+            this.callback = cb;
+        }
+
+        @Override
+        void doExecute(String folderIdentity) {
+            doSongSearch(service, folderIdentity, maxResults, paginationBudle, callback);
         }
     }
 
