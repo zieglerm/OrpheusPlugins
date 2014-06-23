@@ -43,8 +43,7 @@ import org.fourthline.cling.support.model.item.Item;
 import org.fourthline.cling.support.model.item.MusicTrack;
 import org.opensilk.music.api.Api;
 import org.opensilk.music.api.RemoteLibraryService;
-import org.opensilk.music.api.callback.FolderBrowseResult;
-import org.opensilk.music.api.model.Resource;
+import org.opensilk.music.api.callback.Result;
 import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
 import org.opensilk.music.plugin.upnp.util.Helpers;
@@ -93,7 +92,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     }
 
     @Override
-    protected void browseFolders(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, FolderBrowseResult cb) throws RemoteException {
+    protected void browseFolders(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
         if (mUpnpService == null) {
             throw new RemoteException();
         }
@@ -101,14 +100,14 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         if (rs != null) {
             // Requested root folder, lets see if there is a music only virtual folder
             if (TextUtils.isEmpty(folderIdentity)) {
-                requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, cb));
+                requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, callback));
             } else {
-                doBrowse(rs, folderIdentity, maxResults, paginationBundle, cb);
+                doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback);
             }
             return;
         }
         try {
-            cb.failure("Unknown error");
+            callback.failure(-1, "Unknown error");
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -164,7 +163,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         }
     }
 
-    private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final FolderBrowseResult cb) {
+    private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) {
         final int start;
         if (paginationBundle != null) {
             start = paginationBundle.getInt("start");
@@ -179,25 +178,25 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
                 final List<Container> containers = didlContent.getContainers();
                 final List<Item> items = didlContent.getItems();
-                final List<Resource> resources = new ArrayList<>(containers.size() + items.size());
+                final List<Bundle> resources = new ArrayList<>(containers.size() + items.size());
 
                 for (Container c : containers) {
-                    Resource r;
+                    Bundle b;
                     if (MusicArtist.CLASS.equals(c)) {
-                        r = Helpers.parseArtist((MusicArtist)c);
+                        b = Helpers.parseArtist((MusicArtist)c).toBundle();
                     } else if (MusicAlbum.CLASS.equals(c)) {
-                        r = Helpers.parseAlbum((MusicAlbum)c);
+                        b = Helpers.parseAlbum((MusicAlbum)c).toBundle();
                     } else {
-                        r = Helpers.parseFolder(c);
+                        b = Helpers.parseFolder(c).toBundle();
                     }
-                    resources.add(r);
+                    resources.add(b);
                 }
 
                 for (Item item : items) {
                     if (MusicTrack.CLASS.equals(item)) {
                         MusicTrack mt = (MusicTrack) item;
                         Song s = Helpers.parseSong(mt);
-                        resources.add(s);
+                        resources.add(s.toBundle());
                     }
                 }
 
@@ -206,7 +205,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 b.putInt("start", start+maxResults);
 
                 try {
-                    cb.success(resources, b);
+                    callback.success(resources, b);
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
@@ -221,7 +220,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             @DebugLog
             public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
                 try {
-                    cb.failure(s);
+                    callback.failure(-1, s);
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
@@ -272,11 +271,11 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     class BrowseCommand extends UpnpCommand {
 
-        final FolderBrowseResult callback;
+        final Result callback;
 
-        BrowseCommand(RemoteService service, int maxResults, Bundle paginationBundle, FolderBrowseResult cb) {
+        BrowseCommand(RemoteService service, int maxResults, Bundle paginationBundle, Result callback) {
             super(service, maxResults, paginationBundle);
-            this.callback = cb;
+            this.callback = callback;
         }
 
         @Override
