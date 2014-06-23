@@ -30,6 +30,12 @@ import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
 
 import java.net.URI;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+import hugo.weaving.DebugLog;
 
 /**
  * Created by drew on 6/18/14.
@@ -40,7 +46,9 @@ public class Helpers {
         final String id = c.getId();
         final String name = c.getTitle();
         final String parentId = c.getParentID();
-        return new Folder(id, name, parentId);
+        final int childCount = c.getChildCount();
+        final String date = c.getFirstPropertyValue(DIDLObject.Property.DC.DATE.class);
+        return new Folder(id, name, parentId, childCount, date);
     }
 
     public static Artist parseArtist(MusicArtist ma) {
@@ -54,7 +62,9 @@ public class Helpers {
         final String name = ma.getTitle();
         final String artist = ma.getFirstArtist().getName();
         final Uri artUri = Uri.parse(ma.getFirstAlbumArtURI().toASCIIString());
-        return new Album(id, name, artist, artUri);
+        final String date = ma.getDate();
+        final int count = ma.getChildCount();
+        return new Album(id, name, artist, count, date, artUri);
     }
 
     public static Song parseSong(MusicTrack mt) {
@@ -62,11 +72,26 @@ public class Helpers {
         final String name = mt.getTitle();
         final String album = mt.getAlbum();
         final String artist = mt.getFirstArtist().getName();
-        final int duration = 0; //TODO parseDuration(mt.getFirstResource().getDuration());
+        final String albumArtist = mt.getFirstArtist().getName();
+        final int duration = parseDuration(mt.getFirstResource().getDuration());
         final Uri dataUri = Uri.parse(mt.getFirstResource().getValue());
         final URI artURI = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
         final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : Uri.EMPTY;
-        return new Song(id, name, album, artist, duration, dataUri, artUri);
+        return new Song(id, name, album, artist, albumArtist, duration, dataUri, artUri);
+    }
+
+    public static int parseDuration(String dur) {
+        DateFormat df = new SimpleDateFormat("H:mm:ss");
+        Date d = null;
+        try {
+            d = df.parse(dur);
+            if (d != null) {
+                return (int) (d.getTime() / 1000);
+            }
+        } catch (ParseException e) {
+            e.printStackTrace();
+        }
+        return 0;
     }
 
 }
