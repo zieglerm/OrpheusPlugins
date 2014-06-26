@@ -40,17 +40,15 @@ public class Helpers {
         final String title = f.getTitle();
         List<ParentReference> parents = f.getParents();
         final String parentId = parents.size() > 0 ? parents.get(0).getId() : null;
-        return new Folder(id, title, parentId);
+        return new Folder(id, title, parentId, 0, null); //TODO
     }
 
     public static Song buildSong(File f, String authToken) {
         final String id = f.getId();
         final String title = f.getTitle();
-        final String album = null;
-        final String artist = null;
         final int duration = 0;
         final Uri data = buildDownloadUri(f.getDownloadUrl(), authToken);
-        return new Song(id, title, album, artist, duration, data, Uri.EMPTY);
+        return new Song(id, title, null, null, null, null, duration, data, null);
     }
 
     public static Uri buildDownloadUri(String url, String authToken) {
