@@ -33,7 +33,7 @@ import org.fourthline.cling.model.meta.RemoteDevice;
 import org.fourthline.cling.registry.DefaultRegistryListener;
 import org.fourthline.cling.registry.Registry;
 import org.fourthline.cling.registry.RegistryListener;
-import org.opensilk.music.api.Api;
+import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.plugin.upnp.R;
 import org.opensilk.music.plugin.upnp.UpnpServiceService;
 
@@ -74,7 +74,7 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
     protected void onListItemClick(ListView l, View v, int position, long id) {
         final DeviceHolder holder = listAdapter.getItem(position);
         Intent i = getIntent();
-        i.putExtra(Api.EXTRA_LIBRARY_ID, holder.id);
+        i.putExtra(OrpheusApi.EXTRA_LIBRARY_ID, holder.id);
         setResult(RESULT_OK, i);
         finish();
     }
@@ -173,11 +173,22 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
 
         @Override
         public boolean equals(Object o) {
-            if (o == this) return true;
-            if (o == null || !(o instanceof DeviceHolder)) return false;
-            DeviceHolder odh = (DeviceHolder) o;
-            if (!TextUtils.equals(odh.id, this.id)) return false;
+            if (this == o) return true;
+            if (!(o instanceof DeviceHolder)) return false;
+
+            DeviceHolder holder = (DeviceHolder) o;
+
+            if (!id.equals(holder.id)) return false;
+//            if (!label.equals(holder.label)) return false;
+
             return true;
+        }
+
+        @Override
+        public int hashCode() {
+            int result = id.hashCode();
+//            result = 31 * result + label.hashCode();
+            return result;
         }
 
         @Override

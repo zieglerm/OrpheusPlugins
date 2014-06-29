@@ -72,12 +72,12 @@ public class Helpers {
         final String name = mt.getTitle();
         final String album = mt.getAlbum();
         final String artist = mt.getFirstArtist().getName();
-        final String albumArtist = mt.getFirstArtist().getName();
         final int duration = parseDuration(mt.getFirstResource().getDuration());
         final Uri dataUri = Uri.parse(mt.getFirstResource().getValue());
         final URI artURI = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
-        final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : Uri.EMPTY;
-        return new Song(id, name, album, artist, albumArtist, duration, dataUri, artUri);
+        final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
+        final String mimeType = mt.getFirstResource().getProtocolInfo().getContentFormatMimeType().getType();
+        return new Song(id, name, album, artist, null, null, duration, dataUri, artUri, mimeType);
     }
 
     public static int parseDuration(String dur) {

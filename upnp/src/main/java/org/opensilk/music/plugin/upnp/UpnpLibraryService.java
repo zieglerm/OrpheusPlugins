@@ -41,7 +41,6 @@ import org.fourthline.cling.support.model.container.MusicArtist;
 import org.fourthline.cling.support.model.item.AudioItem;
 import org.fourthline.cling.support.model.item.Item;
 import org.fourthline.cling.support.model.item.MusicTrack;
-import org.opensilk.music.api.Api;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
 import org.opensilk.music.api.model.Song;
@@ -55,8 +54,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import hugo.weaving.DebugLog;
-
-import static org.opensilk.music.api.options.Ability.BROWSE_FOLDERS;
 
 /**
  * Created by drew on 6/8/14.
@@ -82,11 +79,6 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
      */
 
     @Override
-    protected int getCapabilities() throws RemoteException {
-        return BROWSE_FOLDERS;
-    }
-
-    @Override
     protected Intent getLibraryChooserIntent() throws RemoteException {
         return new Intent(this, LibraryPickerActivity.class);
     }
@@ -102,8 +94,25 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             if (TextUtils.isEmpty(folderIdentity)) {
                 requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, callback));
             } else {
-                doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback);
+                doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback, false);
             }
+            return;
+        }
+        try {
+            callback.failure(-1, "Unknown error");
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void listSongsInFolder(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        RemoteService rs = acquireContentDirectoryService(libraryIdentity);
+        if (rs != null) {
+            doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback, true);
             return;
         }
         try {
@@ -163,14 +172,13 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         }
     }
 
-    private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) {
+    private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback, final boolean songsOnly) {
         final int start;
         if (paginationBundle != null) {
             start = paginationBundle.getInt("start");
         } else {
             start = 0;
         }
-
         final Browse browse = new Browse(rs, folderIdentity, BrowseFlag.DIRECT_CHILDREN, Browse.CAPS_WILDCARD, start, (long)maxResults, null) {
             @Override
             @DebugLog
@@ -180,16 +188,18 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 final List<Item> items = didlContent.getItems();
                 final List<Bundle> resources = new ArrayList<>(containers.size() + items.size());
 
-                for (Container c : containers) {
-                    Bundle b;
-                    if (MusicArtist.CLASS.equals(c)) {
-                        b = Helpers.parseArtist((MusicArtist)c).toBundle();
-                    } else if (MusicAlbum.CLASS.equals(c)) {
-                        b = Helpers.parseAlbum((MusicAlbum)c).toBundle();
-                    } else {
-                        b = Helpers.parseFolder(c).toBundle();
+                if (!songsOnly) {
+                    for (Container c : containers) {
+                        Bundle b;
+                        if (MusicArtist.CLASS.equals(c)) {
+                            b = Helpers.parseArtist((MusicArtist)c).toBundle();
+                        } else if (MusicAlbum.CLASS.equals(c)) {
+                            b = Helpers.parseAlbum((MusicAlbum)c).toBundle();
+                        } else {
+                            b = Helpers.parseFolder(c).toBundle();
+                        }
+                        resources.add(b);
                     }
-                    resources.add(b);
                 }
 
                 for (Item item : items) {
@@ -200,9 +210,16 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                     }
                 }
 
-                //TODO
-                final Bundle b = new Bundle(1);
-                b.putInt("start", start+maxResults);
+                final Bundle b;
+                // this isnt exactly right, it will cause an extra call
+                // but i dont know of a more specific manner to determine
+                // end of results
+                if (containers.size() == 0 && items.size() == 0) {
+                    b = null;
+                } else {
+                    b = new Bundle(1);
+                    b.putInt("start", start+maxResults);
+                }
 
                 try {
                     callback.success(resources, b);
@@ -280,7 +297,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
         @Override
         void doExecute(String folderIdentity) {
-            doBrowse(service, folderIdentity, maxResults, paginationBudle, callback);
+            doBrowse(service, folderIdentity, maxResults, paginationBudle, callback, false);
         }
 
 
