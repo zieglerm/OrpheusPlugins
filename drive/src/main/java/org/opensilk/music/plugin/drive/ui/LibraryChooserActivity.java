@@ -25,7 +25,7 @@ import android.os.Bundle;
 
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
 
-import org.opensilk.music.api.Api;
+import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.silkdagger.app.DaggerActivity;
 
@@ -82,7 +82,7 @@ public class LibraryChooserActivity extends DaggerActivity {
 
     private void doFinish() {
         Intent i = getIntent();
-        i.putExtra(Api.EXTRA_LIBRARY_ID, mAccountName);
+        i.putExtra(OrpheusApi.EXTRA_LIBRARY_ID, mAccountName);
         setResult(RESULT_OK, i);
         finish();
     }
