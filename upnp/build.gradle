@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-apply plugin: 'android'
+apply plugin: 'com.android.application'
 apply plugin: 'hugo'
 
 // Versioning
@@ -33,7 +33,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
-        packageName "org.opensilk.music.plugin.upnp"
+        applicationId "org.opensilk.music.plugin.upnp"
         minSdkVersion 16
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode versionMajor * 1000000 + versionMinor * 10000 + versionPatch * 100 + versionBuild
@@ -66,7 +66,7 @@ android {
 
     buildTypes {
         debug {
-            packageNameSuffix ".debug"
+            applicationIdSuffix ".debug"
             versionNameSuffix rootProject.getDebugVersionSuffix()
             runProguard false//true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -101,7 +101,6 @@ dependencies {
 
     compile project(':../OrpheusApi:api')
 
-//    compile 'commons-lang:commons-lang:2.3'
     compile 'org.seamless:seamless-xml:1.0-alpha3'
     compile 'org.apache.commons:commons-lang3:3.3.2'
 

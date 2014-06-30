@@ -15,7 +15,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-apply plugin: 'android'
+apply plugin: 'com.android.application'
 apply plugin: 'hugo'
 
 // Versioning
@@ -33,7 +33,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
 
     defaultConfig {
-        packageName "org.opensilk.music.plugin.drive"
+        applicationId "org.opensilk.music.plugin.drive"
         minSdkVersion 14
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode versionMajor * 1000000 + versionMinor * 10000 + versionPatch * 100 + versionBuild
@@ -66,7 +66,7 @@ android {
 
     buildTypes {
         debug {
-            packageNameSuffix ".debug"
+            applicationIdSuffix ".debug"
             versionNameSuffix rootProject.getDebugVersionSuffix()
             runProguard false//true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -86,7 +86,7 @@ dependencies {
 
     provided 'com.squareup.dagger:dagger-compiler:1.2.+'
     compile 'com.squareup.dagger:dagger:1.2.+'
-    compile 'org.opensilk.silkdagger:libsilkdagger:0.1.0-SNAPSHOT'
+    compile 'org.opensilk.silkdagger:libsilkdagger:0.1.0-SNAPSHOT@aar'
 
     compile ('com.google.api-client:google-api-client-android:1.18.0-rc') {
         exclude module: 'httpclient'
