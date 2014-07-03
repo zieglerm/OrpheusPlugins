@@ -51,6 +51,14 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
+        if (wantLightTheme) {
+            setTheme(R.style.AppThemeLight);
+        } else {
+            setTheme(R.style.AppThemeDark);
+        }
+
         setContentView(R.layout.activity_librarychooser);
         ButterKnife.inject(this);
 

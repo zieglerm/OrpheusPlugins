@@ -5,4 +5,12 @@
         <!-- Customize your theme here. -->
     </style>
 
+    <style name="AppThemeDark" parent="android:Theme.Holo.Dialog.NoActionBar.MinWidth">
+
+    </style>
+
+    <style name="AppThemeLight" parent="android:Theme.Holo.Light.Dialog.NoActionBar.MinWidth">
+
+    </style>
+
 </resources>
