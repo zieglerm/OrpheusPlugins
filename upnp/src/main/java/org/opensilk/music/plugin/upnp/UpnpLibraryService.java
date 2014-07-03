@@ -84,6 +84,22 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     }
 
     @Override
+    protected void pause() throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        mUpnpService.getRegistry().pause();
+    }
+
+    @Override
+    protected void resume() throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        mUpnpService.getRegistry().resume();
+    }
+
+    @Override
     protected void browseFolders(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
         if (mUpnpService == null) {
             throw new RemoteException();

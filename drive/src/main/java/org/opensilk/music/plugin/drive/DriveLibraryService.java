@@ -77,6 +77,16 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     @Override
+    protected void pause() throws RemoteException {
+        //noop
+    }
+
+    @Override
+    protected void resume() throws RemoteException {
+        //noop
+    }
+
+    @Override
     @DebugLog
     protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) throws RemoteException {
         mDrive.setAccountName(libraryIdentity);
