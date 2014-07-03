@@ -34,6 +34,7 @@ import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.music.plugin.drive.util.Helpers;
+import org.opensilk.silkdagger.DaggerInjector;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,7 +42,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import dagger.ObjectGraph;
 import hugo.weaving.DebugLog;
 
 import static android.os.AsyncTask.THREAD_POOL_EXECUTOR;
@@ -57,13 +57,8 @@ public class DriveLibraryService extends RemoteLibraryService {
     @Override
     public void onCreate() {
         super.onCreate();
-        DriveApp app = (DriveApp) getApplication();
-        ObjectGraph graph = app.getApplicationGraph();
-        if (graph != null) {
-            graph.inject(this);
-        } else {
-            throw new RuntimeException();
-        }
+        DaggerInjector injector = (DaggerInjector) getApplication();
+        injector.inject(this);
     }
 
     @Override

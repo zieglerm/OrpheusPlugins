@@ -23,4 +23,6 @@
     <string name="plugin_name">Upnp</string>
     <string name="plugin_description">DLNA library plugin</string>
 
+    <string name="select_device">Select device</string>
+
 </resources>

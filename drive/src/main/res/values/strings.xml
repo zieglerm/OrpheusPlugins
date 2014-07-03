@@ -22,4 +22,6 @@
     <string name="plugin_name">Drive</string>
     <string name="plugin_description">Drive library plugin</string>
 
+    <string name="authorizing">Authorizing…</string>
+
 </resources>

@@ -35,8 +35,6 @@
 
         <activity android:name=".ui.LibraryPickerActivity"
             android:exported="true"
-            android:taskAffinity=""
-            android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Holo.Dialog.NoActionBar.MinWidth">
 
         </activity>

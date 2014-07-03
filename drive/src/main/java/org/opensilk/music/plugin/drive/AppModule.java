@@ -20,6 +20,8 @@ package org.opensilk.music.plugin.drive;
 import android.app.Application;
 import android.content.Context;
 
+import org.opensilk.music.plugin.drive.ui.DriveTestFragment;
+import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.music.plugin.drive.util.DriveHelperImpl;
 import org.opensilk.silkdagger.qualifier.ForApplication;
@@ -35,7 +37,8 @@ import dagger.Provides;
 @Module(
         injects = {
                 DriveHelperImpl.class,
-                DriveLibraryService.class
+                DriveLibraryService.class,
+                DriveTestFragment.class,
         },
         library = true
 )

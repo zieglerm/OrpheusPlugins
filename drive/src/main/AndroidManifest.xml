@@ -35,8 +35,6 @@
 
         <activity android:name=".ui.LibraryChooserActivity"
             android:exported="true"
-            android:taskAffinity=""
-            android:excludeFromRecents="true"
             android:theme="@style/AppTheme.Translucent">
 
         </activity>

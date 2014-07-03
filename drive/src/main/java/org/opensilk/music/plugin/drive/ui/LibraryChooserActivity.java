@@ -18,45 +18,43 @@
 package org.opensilk.music.plugin.drive.ui;
 
 import android.accounts.AccountManager;
+import android.app.Activity;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.ProgressDialog;
 import android.content.Intent;
-import android.os.AsyncTask;
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 
-import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
-
 import org.opensilk.music.api.OrpheusApi;
-import org.opensilk.music.plugin.drive.util.DriveHelper;
-import org.opensilk.silkdagger.app.DaggerActivity;
+import org.opensilk.music.plugin.drive.R;
 
-import java.io.IOException;
-
-import javax.inject.Inject;
+import hugo.weaving.DebugLog;
 
 /**
  * Created by drew on 6/15/14.
  */
-public class LibraryChooserActivity extends DaggerActivity {
+public class LibraryChooserActivity extends Activity implements DriveTestFragment.TestListener {
 
     public static final int REQUEST_ACCOUNT_PICKER = 1001;
     public static final int REQUEST_AUTH_APPROVAL = 1002;
 
     private String mAccountName;
 
-    @Inject
-    protected DriveHelper mDrive;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        setResult(RESULT_CANCELED, getIntent());
+        setResult(RESULT_CANCELED);
 
-        Intent i = AccountManager.newChooseAccountIntent(null, null, new String[]{"com.google"}, true, null, null, null, null);
-        startActivityForResult(i, REQUEST_ACCOUNT_PICKER);
+        if (savedInstanceState == null) {
+            Intent i = AccountManager.newChooseAccountIntent(null, null, new String[]{"com.google"}, true, null, null, null, null);
+            startActivityForResult(i, REQUEST_ACCOUNT_PICKER);
+        }
     }
 
     @Override
+    @DebugLog
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         switch (requestCode) {
             case REQUEST_ACCOUNT_PICKER:
@@ -64,79 +62,74 @@ public class LibraryChooserActivity extends DaggerActivity {
                     mAccountName = data.getStringExtra(AccountManager.KEY_ACCOUNT_NAME);
                     // After we select an account we still need to authorize ourselves
                     // for drive access.
-                    new DriveTest().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+                    startTest();
                 } else {
-                    //TODO
+                    finishFailure();
                 }
                 break;
             case REQUEST_AUTH_APPROVAL:
                 if (resultCode == RESULT_OK) {
-                    doFinish();
+                    finishSuccess();
                 } else {
-                    //TODO
+                    finishFailure();
                 }
             default:
                 super.onActivityResult(requestCode, resultCode, data);
         }
     }
 
-    private void doFinish() {
-        Intent i = getIntent();
-        i.putExtra(OrpheusApi.EXTRA_LIBRARY_ID, mAccountName);
+    private void startTest() {
+        // hack, idk why but, if screen rotates while the background task
+        // is executing the returned intent will lack the EXTRA_LIBRARY_ID extra
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
+        // show progress
+        new ProgressFragment().show(getFragmentManager(), "progress");
+        // start the test
+        getFragmentManager().beginTransaction()
+                .add(DriveTestFragment.newInstance(mAccountName), "tester")
+                .commit();
+    }
+
+    private void finishSuccess() {
+        Intent i = new Intent().putExtra(OrpheusApi.EXTRA_LIBRARY_ID, mAccountName);
         setResult(RESULT_OK, i);
         finish();
     }
 
-    /*
-     * Abstract methods
-     */
+    private void finishFailure() {
+        setResult(RESULT_CANCELED);
+        finish();
+    }
 
     @Override
-    protected Object[] getModules() {
-        return new Object[] {
-                new UiModule(this)
-        };
+    @DebugLog
+    public void onSuccess() {
+        finishSuccess();
     }
 
-    private class DriveTest extends AsyncTask<Void, Void, Boolean> {
-
-        private ProgressDialog progress;
-        private Intent resolveIntent;
-
-        @Override
-        protected void onPreExecute() {
-            progress = new ProgressDialog(LibraryChooserActivity.this);
-            progress.setMessage("Verifying");
-            progress.show();
-        }
-
-        @Override
-        protected Boolean doInBackground(Void... params) {
-            mDrive.setAccountName(mAccountName);
-            try {
-                mDrive.drive().files().list().setFields("items/id").setMaxResults(1)
-                        .execute();
-                return true;
-            } catch (UserRecoverableAuthIOException e) {
-                resolveIntent = e.getIntent();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-
-        @Override
-        protected void onPostExecute(Boolean success) {
-            progress.dismiss();
-            if (success) {
-                doFinish();
-            } else {
-                if (resolveIntent != null) {
-                    startActivityForResult(resolveIntent, REQUEST_AUTH_APPROVAL);
-                } else {
-                    //TODO
-                }
-            }
+    @Override
+    public void onFailure(Intent resolveIntent) {
+        if (resolveIntent != null) {
+            startActivityForResult(resolveIntent, REQUEST_AUTH_APPROVAL);
+        } else {
+            finishFailure();
         }
     }
+
+    public static class ProgressFragment extends DialogFragment {
+
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            setCancelable(false);
+        }
+
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            ProgressDialog mProgressDialog = new ProgressDialog(getActivity());
+            mProgressDialog.setMessage(getString(R.string.authorizing));
+            return mProgressDialog;
+        }
+    }
+
 }
