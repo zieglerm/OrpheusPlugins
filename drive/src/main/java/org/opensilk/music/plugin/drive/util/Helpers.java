@@ -33,18 +33,20 @@ import java.util.Locale;
  */
 public class Helpers {
 
-    public static final String FIELDS = "items/id,items/mimeType,items/parents,items/title,items/downloadUrl";
+    public static final String FIELDS = "items/id,items/mimeType,items/parents,items/title,items/downloadUrl,items/modifiedDate";
 
     public static Folder buildFolder(File f) {
         final String id = f.getId();
         final String title = f.getTitle();
         List<ParentReference> parents = f.getParents();
         final String parentId = parents.size() > 0 ? parents.get(0).getId() : null;
+        final String date = f.getModifiedDate().toString();
         return new Folder.Builder()
                 .setIdentity(id)
                 .setName(title)
                 .setParentIdentity(parentId)
-                .build();//TODO add date;
+                .setDate(date)
+                .build();
     }
 
     public static Song buildSong(File f, String authToken) {
