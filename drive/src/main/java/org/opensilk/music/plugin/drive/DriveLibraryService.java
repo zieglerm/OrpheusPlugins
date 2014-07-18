@@ -21,12 +21,14 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.text.TextUtils;
+import android.util.Log;
 
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 
+import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
 import org.opensilk.music.api.model.Folder;
@@ -39,17 +41,27 @@ import org.opensilk.silkdagger.DaggerInjector;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import javax.inject.Inject;
 
 import hugo.weaving.DebugLog;
 
 import static android.os.AsyncTask.THREAD_POOL_EXECUTOR;
+import static org.opensilk.music.api.OrpheusApi.Abilities.SEARCH;
+
 
 /**
  * Created by drew on 6/13/14.
  */
 public class DriveLibraryService extends RemoteLibraryService {
+
+    public static final String BASE_QUERY = " in parents and trashed=false ";
+    public static final String FOLDER_MIMETYPE = "application/vnd.google-apps.folder";
+    public static final String AUDIO_MIME_WILDCARD = "audio";
+    public static final String AUDIO_OGG_MIMETYPE = "application/ogg";
+    public static final String FOLDER_SONG_QUERY = BASE_QUERY+" and (mimeType='"+FOLDER_MIMETYPE+"' or mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
+    public static final String SONG_QUERY = BASE_QUERY+" and (mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
 
     @Inject
     protected DriveHelper mDrive;
@@ -72,8 +84,18 @@ public class DriveLibraryService extends RemoteLibraryService {
      */
 
     @Override
+    protected int getCapabilities() throws RemoteException {
+        return SEARCH;
+    }
+
+    @Override
     protected Intent getLibraryChooserIntent() throws RemoteException {
         return new Intent(this, LibraryChooserActivity.class);
+    }
+
+    @Override
+    protected Intent getSettingsIntent() throws RemoteException {
+        return null;
     }
 
     @Override
@@ -102,8 +124,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         } else {
             paginationToken = null;
         }
-        final String query = fID + " in parents and trashed=false and (mimeType = 'application/vnd.google-apps.folder'"
-                + " or mimeType contains 'audio' or mimeType = 'application/ogg')";
+        final String query = fID + FOLDER_SONG_QUERY;
         ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, query, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
@@ -117,8 +138,22 @@ public class DriveLibraryService extends RemoteLibraryService {
         } else {
             paginationToken = null;
         }
-        final String query = "'"+folderIdentity+"' in parents and trashed=false and (mimeType contains 'audio' or mimeType = 'application/ogg')";
+        final String query =  "'"+folderIdentity+"'" + SONG_QUERY;
         ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, query, paginationToken, true, callback);
+        THREAD_POOL_EXECUTOR.execute(r);
+    }
+
+    @Override
+    protected void search(String libraryIdentity, String query, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
+        mDrive.setAccountName(libraryIdentity);
+        final String paginationToken;
+        if (paginationBundle != null) {
+            paginationToken = paginationBundle.getString("token");
+        } else {
+            paginationToken = null;
+        }
+        final String q = "'root'" + FOLDER_SONG_QUERY + " and title contains '"+query+"'";
+        ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, q, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
 
@@ -142,6 +177,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         @Override
         public void run() {
             try {
+                Log.d("TAG", "q="+query);
                 Drive.Files.List req = dHelper.drive().files().list()
                         .setQ(query)
                         .setFields(Helpers.FIELDS)
@@ -156,7 +192,7 @@ public class DriveLibraryService extends RemoteLibraryService {
                 final String authToken = dHelper.getAuthToken();
                 for (File f : files) {
                     final String mime = f.getMimeType();
-                    if (TextUtils.equals("application/vnd.google-apps.folder", mime)) {
+                    if (TextUtils.equals(FOLDER_MIMETYPE, mime)) {
                         if (!songsOnly) {
                             Folder folder = Helpers.buildFolder(f);
                             folders.add(folder);

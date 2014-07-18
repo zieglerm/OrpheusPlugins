@@ -33,6 +33,7 @@ import org.fourthline.cling.model.meta.RemoteService;
 import org.fourthline.cling.model.types.UDAServiceType;
 import org.fourthline.cling.model.types.UDN;
 import org.fourthline.cling.support.contentdirectory.callback.Browse;
+import org.fourthline.cling.support.contentdirectory.callback.Search;
 import org.fourthline.cling.support.model.BrowseFlag;
 import org.fourthline.cling.support.model.DIDLContent;
 import org.fourthline.cling.support.model.container.Container;
@@ -54,6 +55,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import hugo.weaving.DebugLog;
+
+import static org.opensilk.music.api.OrpheusApi.Abilities.SEARCH;
 
 /**
  * Created by drew on 6/8/14.
@@ -79,8 +82,18 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
      */
 
     @Override
+    protected int getCapabilities() throws RemoteException {
+        return SEARCH;
+    }
+
+    @Override
     protected Intent getLibraryChooserIntent() throws RemoteException {
         return new Intent(this, LibraryPickerActivity.class);
+    }
+
+    @Override
+    protected Intent getSettingsIntent() throws RemoteException {
+        return null;
     }
 
     @Override
@@ -129,6 +142,23 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         RemoteService rs = acquireContentDirectoryService(libraryIdentity);
         if (rs != null) {
             doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback, true);
+            return;
+        }
+        try {
+            callback.failure(-1, "Unknown error");
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void search(String libraryIdentity, String query, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
+        if (mUpnpService == null) {
+            throw new RemoteException();
+        }
+        RemoteService rs = acquireContentDirectoryService(libraryIdentity);
+        if (rs != null) {
+            requestFeatures(rs, new SearchCommand(rs, query, maxResults, paginationBundle, callback));
             return;
         }
         try {
@@ -264,6 +294,79 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         }
     }
 
+    private void doSearch(RemoteService rs, String folderIdentity, String query, final int maxResults, Bundle paginationBundle, final Result callback) {
+        final int start;
+        if (paginationBundle != null) {
+            start = paginationBundle.getInt("start");
+        } else {
+            start = 0;
+        }
+        Search search = new Search(rs, folderIdentity, "dc:title contains \"" + query
+                + "\" and (upnp:class=\"object.item.audioItem.musicTrack\" or upnp:class derivedFrom \"object.container\")",
+                "*", start, (long)maxResults, null) {
+            @Override
+            public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
+                final List<Container> containers = didlContent.getContainers();
+                final List<Item> items = didlContent.getItems();
+                final List<Bundle> resources = new ArrayList<>(containers.size() + items.size());
+
+                for (Container c : containers) {
+                    Bundle b;
+                    if (MusicArtist.CLASS.equals(c)) {
+                        b = Helpers.parseArtist((MusicArtist)c).toBundle();
+                    } else if (MusicAlbum.CLASS.equals(c)) {
+                        b = Helpers.parseAlbum((MusicAlbum)c).toBundle();
+                    } else {
+                        b = Helpers.parseFolder(c).toBundle();
+                    }
+                    resources.add(b);
+                }
+
+                for (Item item : items) {
+                    if (MusicTrack.CLASS.equals(item)) {
+                        MusicTrack mt = (MusicTrack) item;
+                        Song s = Helpers.parseSong(mt);
+                        resources.add(s.toBundle());
+                    }
+                }
+
+                final Bundle b;
+                // this isnt exactly right, it will cause an extra call
+                // but i dont know of a more specific manner to determine
+                // end of results
+                if (containers.size() == 0 && items.size() == 0) {
+                    b = null;
+                } else {
+                    b = new Bundle(1);
+                    b.putInt("start", start+maxResults);
+                }
+
+                try {
+                    callback.success(resources, b);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void updateStatus(Status status) {
+
+            }
+
+            @Override
+            public void failure(ActionInvocation invocation, UpnpResponse operation, String s) {
+                try {
+                    callback.failure(-1, s);
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        if (mUpnpService != null) {
+            mUpnpService.getControlPoint().execute(search);
+        }
+    }
+
 
     interface Command {
         void execute(Object data);
@@ -273,11 +376,13 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         final RemoteService service;
         final int maxResults;
         final Bundle paginationBudle;
+        final Result callback;
 
-        UpnpCommand(RemoteService service, final int maxResults, Bundle paginationBundle) {
+        UpnpCommand(RemoteService service, final int maxResults, Bundle paginationBundle, Result callback) {
             this.service = service;
             this.maxResults = maxResults;
             this.paginationBudle = paginationBundle;
+            this.callback = callback;
         }
 
         @Override
@@ -304,11 +409,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     class BrowseCommand extends UpnpCommand {
 
-        final Result callback;
-
         BrowseCommand(RemoteService service, int maxResults, Bundle paginationBundle, Result callback) {
-            super(service, maxResults, paginationBundle);
-            this.callback = callback;
+            super(service, maxResults, paginationBundle, callback);
         }
 
         @Override
@@ -316,7 +418,20 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             doBrowse(service, folderIdentity, maxResults, paginationBudle, callback, false);
         }
 
+    }
 
+    class SearchCommand extends UpnpCommand {
+        final String query;
+
+        SearchCommand(RemoteService service, String query, int maxResults, Bundle paginationBundle, Result callback) {
+            super(service, maxResults, paginationBundle, callback);
+            this.query = query;
+        }
+
+        @Override
+        void doExecute(String folderIdentity) {
+            doSearch(service, folderIdentity, query, maxResults, paginationBudle, callback);
+        }
     }
 
 }
