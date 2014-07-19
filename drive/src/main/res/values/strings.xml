@@ -18,10 +18,23 @@
 
 <resources>
 
+    <!-- Plugin info -->
     <string name="app_name">Orpheus Drive Plugin</string>
     <string name="plugin_name">Drive</string>
-    <string name="plugin_description">Drive library plugin</string>
+    <string name="plugin_description">Google Drive library plugin</string>
 
+    <!-- Library picker -->
     <string name="authorizing">Authorizing…</string>
+
+    <!-- Settings-->
+    <string name="settings_root_folder">Pick root folder</string>
+    <string name="settings_about">About</string>
+    <string name="about_me" translatable="false">OpenSilk Productions LLC</string>
+    <string name="about_me_url" translatable="false">http://opensilk.org</string>
+    <string name="about_licenses">Open source licenses</string>
+
+    <!-- Orpheus library menu overrides -->
+    <string name="menu_change_source">Select account</string>
+    <string name="menu_library_settings">Drive settings</string>
 
 </resources>

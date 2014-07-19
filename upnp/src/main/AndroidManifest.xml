@@ -30,17 +30,24 @@
         android:name=".UpnpApp"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name"
-        android:theme="@style/AppThemeLight" >
+        android:label="@string/app_name">
 
+        <!-- Library picker activity
+             intent retrieved through RemoteLibrary.getLibraryPickerIntent() -->
         <activity android:name=".ui.LibraryPickerActivity"
             android:exported="true"
-            android:theme="@style/AppThemeLight">
+            android:theme="@style/AppThemeDialogLight"/>
 
-        </activity>
+        <!-- Library settings activity
+             intent retrieved through RemoteLibrary.getSettingsIntent()
+             when using settings OrpheusApi.Abilities.SETTINGS must be returned
+             in RemoteLibrary.getCapabilities() -->
+        <activity android:name=".ui.SettingsActivity"
+            android:exported="true"
+            android:theme="@style/AppThemeLight"/>
 
-        <service android:name=".UpnpServiceService"/>
-
+        <!-- RemoteLibrary implementation
+             all items here required for Orpheus to populate the PluginInfo -->
         <service
             android:name=".UpnpLibraryService"
             android:icon="@drawable/ic_launcher"
@@ -50,6 +57,8 @@
                 <action android:name="org.opensilk.music.plugin.LIBRARY_SERVICE" />
             </intent-filter>
         </service>
+
+        <service android:name=".UpnpServiceService"/>
 
     </application>
 

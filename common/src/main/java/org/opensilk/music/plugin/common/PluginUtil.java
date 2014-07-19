@@ -15,6 +15,28 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-include ':drive', ':common'
-include ':upnp'
-include ':../OrpheusApi:api'
+package org.opensilk.music.plugin.common;
+
+/**
+ * Created by drew on 7/19/14.
+ */
+public class PluginUtil {
+
+    private PluginUtil() {}
+
+    /**
+     * Mangles the input to create a posix safe file name.
+     * All illegal characters are replaced with '_' (underscores)
+     * This could potentially replace the entire string with underscores,
+     * but that would be on you for using dumbass naming conventions.
+     * @param string
+     * @return
+     */
+    public static String posixSafe(String string) {
+        String s = string;
+        if (string.startsWith("-")) {
+            s = string.replaceFirst("-", "_");
+        }
+        return s.replaceAll("[^a-zA-Z0-9\\.\\-_]", "_");
+    }
+}

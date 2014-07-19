@@ -34,6 +34,7 @@ allprojects {
     repositories {
         maven { url "../../m2/repository" }
         maven { url "http://4thline.org/m2" }
+        maven { url "https://repo.commonsware.com.s3.amazonaws.com" }
         mavenCentral()
     }
 }

@@ -18,22 +18,23 @@
 package org.opensilk.music.plugin.drive;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.text.TextUtils;
-import android.util.Log;
 
 import com.google.android.gms.auth.GoogleAuthException;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 
-import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
+import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
+import org.opensilk.music.plugin.drive.ui.SettingsActivity;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.music.plugin.drive.util.Helpers;
 import org.opensilk.silkdagger.DaggerInjector;
@@ -41,14 +42,13 @@ import org.opensilk.silkdagger.DaggerInjector;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import javax.inject.Inject;
 
-import hugo.weaving.DebugLog;
+import timber.log.Timber;
 
 import static android.os.AsyncTask.THREAD_POOL_EXECUTOR;
-import static org.opensilk.music.api.OrpheusApi.Abilities.SEARCH;
+import static org.opensilk.music.api.OrpheusApi.Abilities.*;
 
 
 /**
@@ -85,7 +85,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
     @Override
     protected int getCapabilities() throws RemoteException {
-        return SEARCH;
+        return SEARCH|SETTINGS;
     }
 
     @Override
@@ -95,7 +95,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
     @Override
     protected Intent getSettingsIntent() throws RemoteException {
-        return null;
+        return new Intent(this, SettingsActivity.class);
     }
 
     @Override
@@ -109,14 +109,20 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     @Override
-    @DebugLog
     protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) throws RemoteException {
         mDrive.setAccountName(libraryIdentity);
         final String fID;
         if (TextUtils.isEmpty(folderIdentity)) {
-            fID = "'root'";
+            String root = getDefaultFolder(libraryIdentity);
+            if (!TextUtils.isEmpty(root)) {
+                // use preferred root
+                fID = "'"+root+"'";
+            } else {
+                // use real root
+                fID = "'root'";
+            }
         } else {
-            fID = "'" + folderIdentity + "'";
+            fID = "'"+folderIdentity+"'";
         }
         final String paginationToken;
         if (paginationBundle != null) {
@@ -157,6 +163,21 @@ public class DriveLibraryService extends RemoteLibraryService {
         THREAD_POOL_EXECUTOR.execute(r);
     }
 
+    /*
+     *
+     */
+
+    private String getDefaultFolder(String libraryIdentity) {
+        return getSettings(libraryIdentity).getString(SettingsActivity.SettingsFragment.ROOT_FOLDER, null);
+    }
+
+    private SharedPreferences getSettings(String libraryIdentity) {
+        return getSharedPreferences(PluginUtil.posixSafe(libraryIdentity), MODE_PRIVATE);
+    }
+
+    /**
+     *
+     */
     static class ListFilesRunner implements Runnable {
         private final DriveHelper dHelper;
         private final int maxResults;
@@ -177,7 +198,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         @Override
         public void run() {
             try {
-                Log.d("TAG", "q="+query);
+                Timber.d("q=" + query);
                 Drive.Files.List req = dHelper.drive().files().list()
                         .setQ(query)
                         .setFields(Helpers.FIELDS)

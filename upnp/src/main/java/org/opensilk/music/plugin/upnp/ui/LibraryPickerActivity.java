@@ -54,9 +54,9 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
 
         boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
         if (wantLightTheme) {
-            setTheme(R.style.AppThemeLight);
+            setTheme(R.style.AppThemeDialogLight);
         } else {
-            setTheme(R.style.AppThemeDark);
+            setTheme(R.style.AppThemeDialogDark);
         }
 
         setContentView(R.layout.activity_librarychooser);

@@ -20,6 +20,7 @@ package org.opensilk.music.plugin.upnp;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -45,7 +46,9 @@ import org.fourthline.cling.support.model.item.MusicTrack;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
 import org.opensilk.music.api.model.Song;
+import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
+import org.opensilk.music.plugin.upnp.ui.SettingsActivity;
 import org.opensilk.music.plugin.upnp.util.Helpers;
 import org.opensilk.upnp.contentdirectory.Feature;
 import org.opensilk.upnp.contentdirectory.Features;
@@ -56,7 +59,7 @@ import java.util.List;
 
 import hugo.weaving.DebugLog;
 
-import static org.opensilk.music.api.OrpheusApi.Abilities.SEARCH;
+import static org.opensilk.music.api.OrpheusApi.Abilities.*;
 
 /**
  * Created by drew on 6/8/14.
@@ -83,7 +86,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     @Override
     protected int getCapabilities() throws RemoteException {
-        return SEARCH;
+        return SEARCH|SETTINGS;
     }
 
     @Override
@@ -93,7 +96,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     @Override
     protected Intent getSettingsIntent() throws RemoteException {
-        return null;
+        return new Intent(this, SettingsActivity.class);
     }
 
     @Override
@@ -119,9 +122,16 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         }
         RemoteService rs = acquireContentDirectoryService(libraryIdentity);
         if (rs != null) {
-            // Requested root folder, lets see if there is a music only virtual folder
+            // Requested root folder
             if (TextUtils.isEmpty(folderIdentity)) {
-                requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, callback));
+                String rootFolder = getDefaultFolder(libraryIdentity);
+                if (!TextUtils.isEmpty(rootFolder)) {
+                    // use preferred root folder
+                    doBrowse(rs, rootFolder, maxResults, paginationBundle, callback, false);
+                } else {
+                    // lets see if there is a music only virtual folder
+                    requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, callback));
+                }
             } else {
                 doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback, false);
             }
@@ -158,7 +168,14 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         }
         RemoteService rs = acquireContentDirectoryService(libraryIdentity);
         if (rs != null) {
-            requestFeatures(rs, new SearchCommand(rs, query, maxResults, paginationBundle, callback));
+            String searchFolder = getSearchFolder(libraryIdentity);
+            if (!TextUtils.isEmpty(searchFolder)) {
+                // use preferred search folder
+                doSearch(rs, searchFolder, query, maxResults, paginationBundle, callback);
+            } else {
+                // lets see if there is a music only virtual folder
+                requestFeatures(rs, new SearchCommand(rs, query, maxResults, paginationBundle, callback));
+            }
             return;
         }
         try {
@@ -183,12 +200,24 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     @Override
     public void onServiceDisconnected(ComponentName name) {
         mUpnpService = null;
-//        bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
+        bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
     }
 
     /*
      *
      */
+
+    private String getDefaultFolder(String libraryIdentity) {
+        return getSettings(libraryIdentity).getString(SettingsActivity.SettingsFragment.ROOT_FOLDER, null);
+    }
+
+    private String getSearchFolder(String libraryIdentity) {
+        return getSettings(libraryIdentity).getString(SettingsActivity.SettingsFragment.SEARCH_FOLDER, null);
+    }
+
+    private SharedPreferences getSettings(String libraryIdentity) {
+        return getSharedPreferences(PluginUtil.posixSafe(libraryIdentity), MODE_PRIVATE);
+    }
 
     private RemoteService acquireContentDirectoryService(String deviceIdentity) {
         RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(deviceIdentity), false);

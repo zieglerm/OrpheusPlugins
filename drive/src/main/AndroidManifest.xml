@@ -28,17 +28,24 @@
         android:name=".DriveApp"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:label="@string/app_name">
 
-        <meta-data android:name="com.google.android.gms.version" android:value="@integer/google_play_services_version" />
-
+        <!-- Library picker activity
+             intent retrieved through RemoteLibrary.getLibraryPickerIntent() -->
         <activity android:name=".ui.LibraryChooserActivity"
             android:exported="true"
-            android:theme="@style/AppTheme.Translucent">
+            android:theme="@style/AppThemeTranslucent"/>
 
-        </activity>
+        <!-- Library settings activity
+             intent retrieved through RemoteLibrary.getSettingsIntent()
+             when using settings OrpheusApi.Abilities.SETTINGS must be returned
+             in RemoteLibrary.getCapabilities()-->
+        <activity android:name=".ui.SettingsActivity"
+            android:exported="true"
+            android:theme="@style/AppThemeLight"/>
 
+        <!-- RemoteLibrary implementation
+             all items here required for Orpheus to populate the PluginInfo -->
         <service android:name=".DriveLibraryService"
             android:icon="@drawable/ic_launcher"
             android:label="@string/plugin_name"
@@ -47,6 +54,9 @@
                 <action android:name="org.opensilk.music.plugin.LIBRARY_SERVICE" />
             </intent-filter>
          </service>
+
+        <meta-data android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
 
     </application>
 

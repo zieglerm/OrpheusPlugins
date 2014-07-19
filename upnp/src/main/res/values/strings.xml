@@ -19,10 +19,24 @@
 
 <resources>
 
+    <!-- Plugin info-->
     <string name="app_name">Orpheus Upnp Plugin</string>
     <string name="plugin_name">Upnp</string>
     <string name="plugin_description">DLNA library plugin</string>
 
+    <!-- Library picker-->
     <string name="select_device">Select device</string>
+
+    <!-- Settings-->
+    <string name="settings_root_folder">Pick root folder</string>
+    <string name="settings_search_folder">Pick search folder</string>
+    <string name="settings_about">About</string>
+    <string name="about_me" translatable="false">OpenSilk Productions LLC</string>
+    <string name="about_me_url" translatable="false">http://opensilk.org</string>
+    <string name="about_licenses">Open source licenses</string>
+
+    <!-- Orpheus library menu overrides -->
+    <string name="menu_change_source">Select device</string>
+    <string name="menu_library_settings">Upnp settings</string>
 
 </resources>
