@@ -20,6 +20,7 @@ package org.opensilk.music.plugin.upnp.util;
 import android.net.Uri;
 
 import org.fourthline.cling.support.model.DIDLObject;
+import org.fourthline.cling.support.model.PersonWithRole;
 import org.fourthline.cling.support.model.container.Container;
 import org.fourthline.cling.support.model.container.MusicAlbum;
 import org.fourthline.cling.support.model.container.MusicArtist;
@@ -60,8 +61,10 @@ public class Helpers {
     public static Album parseAlbum(MusicAlbum ma) {
         final String id = ma.getId();
         final String name = ma.getTitle();
-        final String artist = ma.getFirstArtist().getName();
-        final Uri artUri = Uri.parse(ma.getFirstAlbumArtURI().toASCIIString());
+        final PersonWithRole firstArtist = ma.getFirstArtist();
+        final String artist = firstArtist != null ? firstArtist.getName() : null;
+        final URI artURI = ma.getFirstAlbumArtURI();
+        final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
         final String date = ma.getDate();
         final int count = ma.getChildCount();
         return new Album(id, name, artist, count, date, artUri);
@@ -76,7 +79,12 @@ public class Helpers {
         final Uri dataUri = Uri.parse(mt.getFirstResource().getValue());
         final URI artURI = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
         final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
-        final String mimeType = mt.getFirstResource().getProtocolInfo().getContentFormatMimeType().getType();
+        String mimeType = null;
+        try {
+            mimeType = mt.getFirstResource().getProtocolInfo().getContentFormatMimeType().getType();
+        } catch (NullPointerException e) {
+            mimeType = null;
+        }
         return new Song(id, name, album, artist, null, null, duration, dataUri, artUri, mimeType);
     }
 

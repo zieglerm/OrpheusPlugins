@@ -28,6 +28,7 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 
+import org.opensilk.music.api.OrpheusApi.Error;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
 import org.opensilk.music.api.model.Folder;
@@ -48,7 +49,7 @@ import javax.inject.Inject;
 import timber.log.Timber;
 
 import static android.os.AsyncTask.THREAD_POOL_EXECUTOR;
-import static org.opensilk.music.api.OrpheusApi.Abilities.*;
+import static org.opensilk.music.api.OrpheusApi.Ability.*;
 
 
 /**
@@ -84,32 +85,32 @@ public class DriveLibraryService extends RemoteLibraryService {
      */
 
     @Override
-    protected int getCapabilities() throws RemoteException {
+    protected int getCapabilities() {
         return SEARCH|SETTINGS;
     }
 
     @Override
-    protected Intent getLibraryChooserIntent() throws RemoteException {
+    protected Intent getLibraryChooserIntent() {
         return new Intent(this, LibraryChooserActivity.class);
     }
 
     @Override
-    protected Intent getSettingsIntent() throws RemoteException {
+    protected Intent getSettingsIntent() {
         return new Intent(this, SettingsActivity.class);
     }
 
     @Override
-    protected void pause() throws RemoteException {
+    protected void pause() {
         //noop
     }
 
     @Override
-    protected void resume() throws RemoteException {
+    protected void resume() {
         //noop
     }
 
     @Override
-    protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) throws RemoteException {
+    protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) {
         mDrive.setAccountName(libraryIdentity);
         final String fID;
         if (TextUtils.isEmpty(folderIdentity)) {
@@ -136,7 +137,7 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     @Override
-    protected void listSongsInFolder(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
+    protected void listSongsInFolder(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) {
         mDrive.setAccountName(libraryIdentity);
         final String paginationToken;
         if (paginationBundle != null) {
@@ -150,7 +151,7 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     @Override
-    protected void search(String libraryIdentity, String query, int maxResults, Bundle paginationBundle, Result callback) throws RemoteException {
+    protected void search(String libraryIdentity, String query, int maxResults, Bundle paginationBundle, Result callback) {
         mDrive.setAccountName(libraryIdentity);
         final String paginationToken;
         if (paginationBundle != null) {
@@ -247,10 +248,17 @@ public class DriveLibraryService extends RemoteLibraryService {
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
-            } catch (IOException|GoogleAuthException e) {
+            } catch (IOException e) {
                 e.printStackTrace();
                 try {
-                    callback.failure(-1, "" + e.getMessage());
+                    callback.failure(Error.NETWORK, ""+e.getMessage());
+                } catch (RemoteException e1) {
+                    e1.printStackTrace();
+                }
+            } catch (GoogleAuthException e) {
+                e.printStackTrace();
+                try {
+                    callback.failure(Error.AUTH_FAILURE, "" + e.getMessage());
                 } catch (RemoteException e1) {
                     e1.printStackTrace();
                 }
