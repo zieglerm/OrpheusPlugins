@@ -97,7 +97,7 @@ dependencies {
     compile ('com.google.api-client:google-api-client-gson:1.18.0-rc') {
         exclude module: 'httpclient'
     }
-    compile 'com.google.android.gms:play-services:4.4.+'
+    compile 'com.google.android.gms:play-services:5.0.+'
 
     compile project(':common')
 }

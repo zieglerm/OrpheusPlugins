@@ -17,4 +17,4 @@
 
 include ':drive', ':common'
 include ':upnp'
-include ':../OrpheusApi:api'
+include ':../Orpheus:api'

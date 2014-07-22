@@ -43,6 +43,6 @@ android {
 }
 
 dependencies {
-    compile project(':../OrpheusApi:api')
+    compile project(':../Orpheus:api')
     compile 'com.commonsware.cwac:endless:1.2.3'
 }
