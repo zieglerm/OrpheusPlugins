@@ -61,8 +61,8 @@ public class DriveLibraryService extends RemoteLibraryService {
     public static final String FOLDER_MIMETYPE = "application/vnd.google-apps.folder";
     public static final String AUDIO_MIME_WILDCARD = "audio";
     public static final String AUDIO_OGG_MIMETYPE = "application/ogg";
-    public static final String FOLDER_SONG_QUERY = BASE_QUERY+" and (mimeType='"+FOLDER_MIMETYPE+"' or mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
-    public static final String SONG_QUERY = BASE_QUERY+" and (mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
+    public static final String FOLDER_SONG_QUERY = " (mimeType='"+FOLDER_MIMETYPE+"' or mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
+    public static final String SONG_QUERY = " (mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
 
     @Inject
     protected DriveHelper mDrive;
@@ -131,7 +131,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         } else {
             paginationToken = null;
         }
-        final String query = fID + FOLDER_SONG_QUERY;
+        final String query = fID + BASE_QUERY + " and" + FOLDER_SONG_QUERY;
         ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, query, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
@@ -145,7 +145,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         } else {
             paginationToken = null;
         }
-        final String query =  "'"+folderIdentity+"'" + SONG_QUERY;
+        final String query =  "'"+folderIdentity+"'" + BASE_QUERY + " and" + SONG_QUERY;
         ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, query, paginationToken, true, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
@@ -159,7 +159,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         } else {
             paginationToken = null;
         }
-        final String q = "'root'" + FOLDER_SONG_QUERY + " and title contains '"+query+"'";
+        final String q = "title contains '"+query+"' and trashed=false and" + FOLDER_SONG_QUERY;
         ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, q, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }

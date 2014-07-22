@@ -343,8 +343,10 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         } else {
             start = 0;
         }
-        Search search = new Search(rs, folderIdentity, "dc:title contains \"" + query
-                + "\" and (upnp:class=\"object.item.audioItem.musicTrack\" or upnp:class derivedFrom \"object.container\")",
+        Search search = new Search(rs, folderIdentity,
+                "dc:title contains \"" + query + "\" or upnp:artist contains \""
+                        + query + "\" or upnp:album contains \"" + query + "\""
+                        + " or upnp:genre contains \"" + query + "\"",
                 "*", start, (long)maxResults, null) {
             @Override
             public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
