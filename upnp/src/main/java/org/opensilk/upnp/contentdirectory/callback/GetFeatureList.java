@@ -26,7 +26,6 @@ import org.fourthline.cling.model.meta.Service;
 import org.opensilk.upnp.contentdirectory.Features;
 import org.opensilk.upnp.contentdirectory.FeaturesParser;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import hugo.weaving.DebugLog;
@@ -68,7 +67,7 @@ public abstract class GetFeatureList extends ActionCallback {
             Method m = Action.class.getDeclaredMethod("setService", Service.class);
             m.setAccessible(true);
             m.invoke(action, service);
-        } catch (NoSuchMethodException|InvocationTargetException|IllegalAccessException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return new ActionInvocation(action);

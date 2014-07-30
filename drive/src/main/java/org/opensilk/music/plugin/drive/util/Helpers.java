@@ -78,7 +78,7 @@ public class Helpers {
 
     public static String formatDate(long ms) {
         Date date = new Date(ms);
-        DateFormat out = new SimpleDateFormat("yyyy-MM-dd");
+        DateFormat out = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         return out.format(date);
     }
 }

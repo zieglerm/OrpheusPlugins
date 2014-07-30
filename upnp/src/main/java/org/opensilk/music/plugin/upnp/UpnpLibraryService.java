@@ -38,6 +38,7 @@ import org.fourthline.cling.support.contentdirectory.callback.Browse;
 import org.fourthline.cling.support.contentdirectory.callback.Search;
 import org.fourthline.cling.support.model.BrowseFlag;
 import org.fourthline.cling.support.model.DIDLContent;
+import org.fourthline.cling.support.model.SortCriterion;
 import org.fourthline.cling.support.model.container.Container;
 import org.fourthline.cling.support.model.container.MusicAlbum;
 import org.fourthline.cling.support.model.container.MusicArtist;
@@ -251,7 +252,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         } else {
             start = 0;
         }
-        final Browse browse = new Browse(rs, folderIdentity, BrowseFlag.DIRECT_CHILDREN, Browse.CAPS_WILDCARD, start, (long)maxResults, null) {
+        final Browse browse = new Browse(rs, folderIdentity, BrowseFlag.DIRECT_CHILDREN, Browse.CAPS_WILDCARD, start, (long)maxResults) {
             @Override
             @DebugLog
             public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
@@ -347,7 +348,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 "dc:title contains \"" + query + "\" or upnp:artist contains \""
                         + query + "\" or upnp:album contains \"" + query + "\""
                         + " or upnp:genre contains \"" + query + "\"",
-                "*", start, (long)maxResults, null) {
+                "*", start, (long)maxResults) {
             @Override
             public void received(ActionInvocation actionInvocation, DIDLContent didlContent) {
                 final List<Container> containers = didlContent.getContainers();

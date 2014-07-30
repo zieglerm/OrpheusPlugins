@@ -35,6 +35,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 import hugo.weaving.DebugLog;
 
@@ -89,7 +90,7 @@ public class Helpers {
     }
 
     public static int parseDuration(String dur) {
-        DateFormat df = new SimpleDateFormat("H:mm:ss");
+        DateFormat df = new SimpleDateFormat("H:mm:ss", Locale.US);
         Date d = null;
         try {
             d = df.parse(dur);
