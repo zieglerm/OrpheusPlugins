@@ -83,6 +83,12 @@ public class FolderPickerActivity extends Activity implements ServiceConnection 
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unbindService(this);
+    }
+
+    @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
         mLibrary = RemoteLibrary.Stub.asInterface(service);
         pushFolder(mSourceIdentity, mStartingFolder);
