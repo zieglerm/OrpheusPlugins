@@ -48,6 +48,9 @@ import org.fourthline.cling.support.model.item.MusicTrack;
 import org.opensilk.music.api.OrpheusApi.Error;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.model.Album;
+import org.opensilk.music.api.model.Artist;
+import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
@@ -263,15 +266,26 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
                 if (!songsOnly) {
                     for (Container c : containers) {
-                        Bundle b;
+                        Bundle b = null;
                         if (MusicArtist.CLASS.equals(c)) {
-                            b = Helpers.parseArtist((MusicArtist)c).toBundle();
+                            Artist a = Helpers.parseArtist((MusicArtist) c);
+                            if (a != null) {
+                                b = a.toBundle();
+                            }
                         } else if (MusicAlbum.CLASS.equals(c)) {
-                            b = Helpers.parseAlbum((MusicAlbum)c).toBundle();
+                            Album a = Helpers.parseAlbum((MusicAlbum)c);
+                            if (a != null) {
+                                b = a.toBundle();
+                            }
                         } else {
-                            b = Helpers.parseFolder(c).toBundle();
+                            Folder f = Helpers.parseFolder(c);
+                            if (f != null) {
+                                b = f.toBundle();
+                            }
                         }
-                        resources.add(b);
+                        if (b != null) {
+                            resources.add(b);
+                        }
                     }
                 }
 
@@ -279,7 +293,9 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                     if (MusicTrack.CLASS.equals(item)) {
                         MusicTrack mt = (MusicTrack) item;
                         Song s = Helpers.parseSong(mt);
-                        resources.add(s.toBundle());
+                        if (s != null) {
+                            resources.add(s.toBundle());
+                        }
                     }
                 }
 
@@ -356,22 +372,35 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 final List<Bundle> resources = new ArrayList<>(containers.size() + items.size());
 
                 for (Container c : containers) {
-                    Bundle b;
+                    Bundle b = null;
                     if (MusicArtist.CLASS.equals(c)) {
-                        b = Helpers.parseArtist((MusicArtist)c).toBundle();
+                        Artist a = Helpers.parseArtist((MusicArtist) c);
+                        if (a != null) {
+                            b = a.toBundle();
+                        }
                     } else if (MusicAlbum.CLASS.equals(c)) {
-                        b = Helpers.parseAlbum((MusicAlbum)c).toBundle();
+                        Album a = Helpers.parseAlbum((MusicAlbum)c);
+                        if (a != null) {
+                            b = a.toBundle();
+                        }
                     } else {
-                        b = Helpers.parseFolder(c).toBundle();
+                        Folder f = Helpers.parseFolder(c);
+                        if (f != null) {
+                            b = f.toBundle();
+                        }
                     }
-                    resources.add(b);
+                    if (b != null) {
+                        resources.add(b);
+                    }
                 }
 
                 for (Item item : items) {
                     if (MusicTrack.CLASS.equals(item)) {
                         MusicTrack mt = (MusicTrack) item;
                         Song s = Helpers.parseSong(mt);
-                        resources.add(s.toBundle());
+                        if (s != null) {
+                            resources.add(s.toBundle());
+                        }
                     }
                 }
 

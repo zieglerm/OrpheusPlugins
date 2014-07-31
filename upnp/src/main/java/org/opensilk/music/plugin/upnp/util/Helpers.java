@@ -18,9 +18,11 @@
 package org.opensilk.music.plugin.upnp.util;
 
 import android.net.Uri;
+import android.text.TextUtils;
 
 import org.fourthline.cling.support.model.DIDLObject;
 import org.fourthline.cling.support.model.PersonWithRole;
+import org.fourthline.cling.support.model.Res;
 import org.fourthline.cling.support.model.container.Container;
 import org.fourthline.cling.support.model.container.MusicAlbum;
 import org.fourthline.cling.support.model.container.MusicArtist;
@@ -37,59 +39,110 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-import hugo.weaving.DebugLog;
-
 /**
  * Created by drew on 6/18/14.
  */
 public class Helpers {
 
     public static Folder parseFolder(Container c) {
-        final String id = c.getId();
-        final String name = c.getTitle();
-        final String parentId = c.getParentID();
-        final int childCount = c.getChildCount();
-        final String date = c.getFirstPropertyValue(DIDLObject.Property.DC.DATE.class);
-        return new Folder(id, name, parentId, childCount, date);
+        final Folder.Builder folder = new Folder.Builder();
+        // mandatory fields
+        try {
+            folder.setIdentity(c.getId());
+            folder.setName(c.getTitle());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        // optional fields
+        try {
+            final String parentId = c.getParentID();
+            folder.setParentIdentity(parentId);
+            final int childCount = c.getChildCount();
+            folder.setChildCount(childCount);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return folder.build();
     }
 
     public static Artist parseArtist(MusicArtist ma) {
-        final String id = ma.getId();
-        final String name = ma.getTitle();
-        return new Artist(id, name, 0, 0);
+        final Artist.Builder artist = new Artist.Builder();
+        // mandatory fields
+        try {
+            artist.setIdentity(ma.getId());
+            artist.setName(ma.getTitle());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        return artist.build();
     }
 
     public static Album parseAlbum(MusicAlbum ma) {
-        final String id = ma.getId();
-        final String name = ma.getTitle();
-        final PersonWithRole firstArtist = ma.getFirstArtist();
-        final String artist = firstArtist != null ? firstArtist.getName() : null;
-        final URI artURI = ma.getFirstAlbumArtURI();
-        final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
-        final String date = ma.getDate();
-        final int count = ma.getChildCount();
-        return new Album(id, name, artist, count, date, artUri);
+        final Album.Builder album = new Album.Builder();
+        // mandatory fields
+        try {
+            album.setIdentity(ma.getId());
+            album.setName(ma.getTitle());
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+        // optional fields
+        try {
+            final PersonWithRole firstArtist = ma.getFirstArtist();
+            final String artist = firstArtist != null ? firstArtist.getName() : null;
+            album.setArtistName(artist);
+            final URI artURI = ma.getFirstAlbumArtURI();
+            final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
+            album.setArtworkUri(artUri);
+            //final String date = ma.getDate();
+            final int count = ma.getChildCount();
+            album.setSongCount(count);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return album.build();
     }
 
     public static Song parseSong(MusicTrack mt) {
-        final String id = mt.getId();
-        final String name = mt.getTitle();
-        final String album = mt.getAlbum();
-        final String artist = mt.getFirstArtist().getName();
-        final int duration = parseDuration(mt.getFirstResource().getDuration());
-        final Uri dataUri = Uri.parse(mt.getFirstResource().getValue());
-        final URI artURI = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
-        final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
-        String mimeType = null;
+        final Song.Builder song = new Song.Builder();
+        // mandatory fields
         try {
-            mimeType = mt.getFirstResource().getProtocolInfo().getContentFormatMimeType().getType();
-        } catch (NullPointerException e) {
-            mimeType = null;
+            song.setIdentity(mt.getId());
+            song.setName(mt.getTitle());
+            final Res firstResource = mt.getFirstResource();
+            song.setDataUri(Uri.parse(firstResource.getValue()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        return new Song(id, name, album, artist, null, null, duration, dataUri, artUri, mimeType);
+        // optional fields
+        try {
+            final String album = mt.getAlbum();
+            song.setAlbumName(album);
+            final PersonWithRole firstArtist = mt.getFirstArtist();
+            final String artist = firstArtist != null ? firstArtist.getName() : null;
+            song.setArtistName(artist);
+            final Res firstResource = mt.getFirstResource();
+            final int duration = parseDuration(firstResource.getDuration());
+            song.setDuration(duration);
+            final URI artURI = mt.getFirstPropertyValue(DIDLObject.Property.UPNP.ALBUM_ART_URI.class);
+            final Uri artUri = artURI != null ? Uri.parse(artURI.toASCIIString()) : null;
+            song.setArtworkUri(artUri);
+            final String mimeType = firstResource.getProtocolInfo().getContentFormatMimeType().getType();
+            song.setMimeType(mimeType);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return song.build();
     }
 
     public static int parseDuration(String dur) {
+        if (TextUtils.isEmpty(dur)) {
+            return 0;
+        }
         DateFormat df = new SimpleDateFormat("H:mm:ss", Locale.US);
         Date d = null;
         try {
