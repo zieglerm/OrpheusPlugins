@@ -17,6 +17,8 @@
 
 package org.opensilk.music.plugin.drive;
 
+import android.os.StrictMode;
+
 import org.opensilk.silkdagger.DaggerApplication;
 
 import timber.log.Timber;
@@ -29,7 +31,24 @@ public class DriveApp extends DaggerApplication {
     @Override
     public void onCreate() {
         super.onCreate();
-        Timber.plant(new Timber.DebugTree());
+        if (BuildConfig.DEBUG) {
+            // logging
+            Timber.plant(new Timber.DebugTree());
+
+            // enable strict mode
+            final StrictMode.ThreadPolicy.Builder threadPolicyBuilder
+                    = new StrictMode.ThreadPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog()
+                    .penaltyFlashScreen();
+            StrictMode.setThreadPolicy(threadPolicyBuilder.build());
+
+            final StrictMode.VmPolicy.Builder vmPolicyBuilder
+                    = new StrictMode.VmPolicy.Builder()
+                    .detectAll()
+                    .penaltyLog();
+            StrictMode.setVmPolicy(vmPolicyBuilder.build());
+        } //else TODO
     }
 
     @Override
