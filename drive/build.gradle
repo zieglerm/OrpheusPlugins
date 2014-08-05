@@ -21,7 +21,7 @@ apply plugin: 'hugo'
 // Versioning
 def versionMajor = 0
 def versionMinor = 1
-def versionPatch = 0
+def versionPatch = 1
 def versionBuild = 0 // bump for dogfood builds, public betas, etc.
 
 assert(versionMinor < 100) // Double digits
@@ -34,7 +34,7 @@ android {
 
     defaultConfig {
         applicationId "org.opensilk.music.plugin.drive"
-        minSdkVersion 14
+        minSdkVersion 15
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode versionMajor * 1000000 + versionMinor * 10000 + versionPatch * 100 + versionBuild
         versionName String.format("%d.%d.%d", versionMajor, versionMinor, versionPatch)
