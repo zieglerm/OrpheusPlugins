@@ -60,7 +60,7 @@ public class LibraryArrayAdapter extends ArrayAdapter<Bundleable> {
             final int apiVersion = mLibrary.getApiVersion();
             if (apiVersion >= OrpheusApi.API_010) {
                 ResultCallback result = new ResultCallback();
-                mLibrary.browseFolders(mLibraryInfo.libraryId, mLibraryInfo.currentFolderId,
+                mLibrary.browseFolders(mLibraryInfo.libraryId, mLibraryInfo.folderId,
                         STEP, mPaginationBundle, result);
                 while (!result.isComplete()) {
                     try {
@@ -107,7 +107,9 @@ public class LibraryArrayAdapter extends ArrayAdapter<Bundleable> {
             mPaginationBundle = paginationBundle;
             if (!items.isEmpty()) {
                 for (Bundle b : items) {
-                    mPendingItems.add(OrpheusApi.transformBundle(b));
+                    try {
+                        mPendingItems.add(OrpheusApi.transformBundle(b));
+                    } catch (Exception ignored) {}
                 }
             }
             done = true;
