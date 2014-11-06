@@ -17,36 +17,52 @@
 
 package org.opensilk.music.plugin.upnp.ui;
 
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.ListActivity;
+import android.app.ListFragment;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.FrameLayout;
 import android.widget.ListView;
 
+import org.eclipse.jetty.servlet.Holder;
 import org.fourthline.cling.android.AndroidUpnpService;
 import org.fourthline.cling.model.meta.RemoteDevice;
 import org.fourthline.cling.registry.DefaultRegistryListener;
 import org.fourthline.cling.registry.Registry;
 import org.fourthline.cling.registry.RegistryListener;
 import org.opensilk.music.api.OrpheusApi;
+import org.opensilk.music.api.meta.LibraryInfo;
+import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.upnp.R;
+import org.opensilk.music.plugin.upnp.UpnpLibraryService;
 import org.opensilk.music.plugin.upnp.UpnpServiceService;
 
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
+import static org.opensilk.music.plugin.upnp.ui.SettingsActivity.SettingsFragment.ROOT_FOLDER;
+import static org.opensilk.music.plugin.upnp.ui.SettingsActivity.SettingsFragment.ROOT_FOLDER_TITLE;
+
 /**
  * Created by drew on 6/14/14.
  */
-public class LibraryPickerActivity extends ListActivity implements ServiceConnection {
+public class LibraryPickerActivity extends Activity implements ServiceConnection {
 
     AndroidUpnpService upnpService;
-    ArrayAdapter<DeviceHolder> listAdapter;
+    ListDialog listDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,15 +70,19 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
 
         boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
         if (wantLightTheme) {
-            setTheme(R.style.AppThemeDialogLight);
+            setTheme(R.style.AppThemeTranslucentLight);
         } else {
-            setTheme(R.style.AppThemeDialogDark);
+            setTheme(R.style.AppThemeTranslucentDark);
         }
 
-        setContentView(R.layout.activity_librarychooser);
-        ButterKnife.inject(this);
+        FrameLayout root = new FrameLayout(this);
+        root.setId(android.R.id.content);
+        setContentView(root, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-        listAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1);
+        if (savedInstanceState == null) {
+            listDialog = new ListDialog();
+            listDialog.show(getFragmentManager(), "listdialog");
+        }
 
         bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
 
@@ -78,17 +98,15 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
         unbindService(this);
     }
 
-    @Override
-    protected void onListItemClick(ListView l, View v, int position, long id) {
-        final DeviceHolder holder = listAdapter.getItem(position);
+    void onItemSelected(DeviceHolder holder) {
         Intent i = getIntent();
+        //TODO remove
         i.putExtra(OrpheusApi.EXTRA_LIBRARY_ID, holder.id);
+        SharedPreferences libraryPrefs = getSharedPreferences(PluginUtil.posixSafe(holder.id), MODE_PRIVATE);
+        String rootFolderId = libraryPrefs.getString(ROOT_FOLDER, null);
+        String rootFolderName = libraryPrefs.getString(ROOT_FOLDER_TITLE, null);
+        i.putExtra(OrpheusApi.EXTRA_LIBRARY_INFO, new LibraryInfo(holder.id, holder.label, rootFolderId, rootFolderName));
         setResult(RESULT_OK, i);
-        finish();
-    }
-
-    @OnClick({R.id.cancel_btn})
-    void onCanceled() {
         finish();
     }
 
@@ -99,18 +117,16 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
     @Override
     public void onServiceConnected(ComponentName name, IBinder service) {
         upnpService = (AndroidUpnpService) service;
-        listAdapter.clear();
+        listDialog.listAdapter.clear();
         for (RemoteDevice d : upnpService.getRegistry().getRemoteDevices()) {
-            listAdapter.add(DeviceHolder.fromRemoteDevice(d));
+            listDialog.listAdapter.add(DeviceHolder.fromRemoteDevice(d));
         }
-        setListAdapter(listAdapter);
         upnpService.getRegistry().addListener(registryListener);
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
         upnpService = null;
-        setListAdapter(null);
     }
 
     /**
@@ -123,13 +139,13 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    int position = listAdapter.getPosition(holder);
+                    int position = listDialog.listAdapter.getPosition(holder);
                     if (position >= 0) {
                         // Device already in the list, re-set new value at same position
-                        listAdapter.remove(holder);
-                        listAdapter.insert(holder, position);
+                        listDialog.listAdapter.remove(holder);
+                        listDialog.listAdapter.insert(holder, position);
                     } else {
-                        listAdapter.add(holder);
+                        listDialog.listAdapter.add(holder);
                     }
                 }
             });
@@ -141,11 +157,11 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    int position = listAdapter.getPosition(holder);
+                    int position = listDialog.listAdapter.getPosition(holder);
                     if (position >= 0) {
                         // Device already in the list, re-set new value at same position
-                        listAdapter.remove(holder);
-                        listAdapter.insert(holder, position);
+                        listDialog.listAdapter.remove(holder);
+                        listDialog.listAdapter.insert(holder, position);
                     }
                 }
             });
@@ -157,11 +173,46 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
-                    listAdapter.remove(holder);
+                    listDialog.listAdapter.remove(holder);
                 }
             });
         }
     };
+
+    public static class ListDialog extends DialogFragment {
+        ArrayAdapter<DeviceHolder> listAdapter;
+
+        @Override
+        public void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            listAdapter = new ArrayAdapter<>(getActivity(), android.R.layout.simple_list_item_1);
+        }
+
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            return new AlertDialog.Builder(getActivity())
+                    .setTitle(R.string.select_device)
+                    .setAdapter(listAdapter, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            ((LibraryPickerActivity) getActivity()).onItemSelected(listAdapter.getItem(which));
+                        }
+                    })
+                    .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            dialog.cancel();
+                        }
+                    })
+                    .create();
+        }
+
+        @Override
+        public void onCancel(DialogInterface dialog) {
+            super.onCancel(dialog);
+            getActivity().finish();
+        }
+    }
 
     static class DeviceHolder {
         final String id;
