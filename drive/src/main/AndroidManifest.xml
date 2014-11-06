@@ -34,7 +34,7 @@
              intent retrieved through RemoteLibrary.getLibraryPickerIntent() -->
         <activity android:name=".ui.LibraryChooserActivity"
             android:exported="true"
-            android:theme="@style/AppThemeTranslucent"/>
+            android:theme="@style/AppThemeTranslucentDark"/>
 
         <!-- Library settings activity
              intent retrieved through RemoteLibrary.getSettingsIntent()

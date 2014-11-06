@@ -38,7 +38,7 @@ import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.ui.SettingsActivity;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.music.plugin.drive.util.Helpers;
-import org.opensilk.silkdagger.DaggerInjector;
+import org.opensilk.common.dagger.DaggerInjector;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -65,7 +65,7 @@ public class DriveLibraryService extends RemoteLibraryService {
     public static final String SONG_QUERY = " (mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
 
     @Inject
-    protected DriveHelper mDrive;
+    protected DriveHelper mDriveHelper;
 
     @Override
     public void onCreate() {
@@ -77,7 +77,7 @@ public class DriveLibraryService extends RemoteLibraryService {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mDrive = null;
+        mDriveHelper.destroy();
     }
 
     /*
@@ -111,7 +111,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
     @Override
     protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) {
-        mDrive.setAccountName(libraryIdentity);
+        final DriveHelper.Session session = mDriveHelper.getSession(libraryIdentity);
         final String fID;
         if (TextUtils.isEmpty(folderIdentity)) {
             String root = getDefaultFolder(libraryIdentity);
@@ -132,13 +132,13 @@ public class DriveLibraryService extends RemoteLibraryService {
             paginationToken = null;
         }
         final String query = fID + BASE_QUERY + " and" + FOLDER_SONG_QUERY;
-        ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, query, paginationToken, false, callback);
+        ListFilesRunner r = new ListFilesRunner(session, maxResults, query, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
 
     @Override
     protected void listSongsInFolder(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) {
-        mDrive.setAccountName(libraryIdentity);
+        final DriveHelper.Session session = mDriveHelper.getSession(libraryIdentity);
         final String paginationToken;
         if (paginationBundle != null) {
             paginationToken = paginationBundle.getString("token");
@@ -146,13 +146,13 @@ public class DriveLibraryService extends RemoteLibraryService {
             paginationToken = null;
         }
         final String query =  "'"+folderIdentity+"'" + BASE_QUERY + " and" + SONG_QUERY;
-        ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, query, paginationToken, true, callback);
+        ListFilesRunner r = new ListFilesRunner(session, maxResults, query, paginationToken, true, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
 
     @Override
     protected void search(String libraryIdentity, String query, int maxResults, Bundle paginationBundle, Result callback) {
-        mDrive.setAccountName(libraryIdentity);
+        final DriveHelper.Session session = mDriveHelper.getSession(libraryIdentity);
         final String paginationToken;
         if (paginationBundle != null) {
             paginationToken = paginationBundle.getString("token");
@@ -160,7 +160,7 @@ public class DriveLibraryService extends RemoteLibraryService {
             paginationToken = null;
         }
         final String q = "title contains '"+query+"' and trashed=false and" + FOLDER_SONG_QUERY;
-        ListFilesRunner r = new ListFilesRunner(mDrive, maxResults, q, paginationToken, false, callback);
+        ListFilesRunner r = new ListFilesRunner(session, maxResults, q, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
     }
 
@@ -180,15 +180,15 @@ public class DriveLibraryService extends RemoteLibraryService {
      *
      */
     static class ListFilesRunner implements Runnable {
-        private final DriveHelper dHelper;
+        private final DriveHelper.Session driveSession;
         private final int maxResults;
         private final String query;
         private final String paginationToken;
         private final boolean songsOnly;
         private final Result callback;
 
-        ListFilesRunner(DriveHelper dHelper, int maxResults, String query, String paginationToken, boolean songsOnly, Result callback) {
-            this.dHelper = dHelper;
+        ListFilesRunner(DriveHelper.Session driveSession, int maxResults, String query, String paginationToken, boolean songsOnly, Result callback) {
+            this.driveSession = driveSession;
             this.maxResults = maxResults;
             this.query = query;
             this.paginationToken = paginationToken;
@@ -200,7 +200,7 @@ public class DriveLibraryService extends RemoteLibraryService {
         public void run() {
             try {
                 Timber.d("q=" + query);
-                Drive.Files.List req = dHelper.drive().files().list()
+                Drive.Files.List req = driveSession.getDrive().files().list()
                         .setQ(query)
                         .setFields(Helpers.FIELDS)
                         .setMaxResults(maxResults);
@@ -211,7 +211,7 @@ public class DriveLibraryService extends RemoteLibraryService {
                 List<File> files = resp.getItems();
                 List<Folder> folders = new ArrayList<>();
                 List<Song> songs = new ArrayList<>();
-                final String authToken = dHelper.getAuthToken();
+                final String authToken = driveSession.getCredential().getToken();
                 for (File f : files) {
                     final String mime = f.getMimeType();
                     if (TextUtils.equals(FOLDER_MIMETYPE, mime)) {
@@ -267,7 +267,7 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     protected void querySongs(String libraryIdentity, final int maxResults, Bundle paginationBundle, final Result callback) throws RemoteException {
-        mDrive.setAccountName(libraryIdentity);
+        final DriveHelper.Session session = mDriveHelper.getSession(libraryIdentity);
         final String paginationToken;
         if (paginationBundle != null) {
             paginationToken = paginationBundle.getString("token");
@@ -278,7 +278,7 @@ public class DriveLibraryService extends RemoteLibraryService {
             @Override
             public void run() {
                 try {
-                    Drive.Files.List req = mDrive.drive().files().list()
+                    Drive.Files.List req = session.getDrive().files().list()
                             .setQ("trashed=false and (mimeType contains 'audio' or mimeType = 'application/ogg')")
                             .setFields(Helpers.FIELDS)
                             .setMaxResults(maxResults);
@@ -288,7 +288,7 @@ public class DriveLibraryService extends RemoteLibraryService {
                     FileList resp = req.execute();
                     List<File> files = resp.getItems();
                     List<Bundle> songs = new ArrayList<>();
-                    final String authToken = mDrive.getAuthToken();
+                    final String authToken = session.getCredential().getToken();
                     for (File f : files) {
                         final String mime = f.getMimeType();
                         if (mime.contains("audio") || TextUtils.equals(mime, "application/ogg")) {

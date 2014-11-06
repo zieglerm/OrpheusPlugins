@@ -26,31 +26,66 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 
+import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException;
+
+import org.opensilk.common.dagger.DaggerInjector;
+import org.opensilk.common.rx.SimpleObserver;
 import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.plugin.drive.R;
+import org.opensilk.music.plugin.drive.util.AuthTest;
+import org.opensilk.music.plugin.drive.util.DriveHelper;
+
+import javax.inject.Inject;
 
 import hugo.weaving.DebugLog;
+import rx.Subscription;
+
+import static org.opensilk.common.rx.RxUtils.isSubscribed;
 
 /**
  * Created by drew on 6/15/14.
  */
-public class LibraryChooserActivity extends Activity implements DriveTestFragment.TestListener {
+public class LibraryChooserActivity extends Activity {
 
-    public static final int REQUEST_ACCOUNT_PICKER = 1001;
-    public static final int REQUEST_AUTH_APPROVAL = 1002;
+    public static final int REQUEST_ACCOUNT_PICKER = RESULT_FIRST_USER << 1;
+    public static final int REQUEST_AUTH_APPROVAL = RESULT_FIRST_USER << 2;
+
+    @Inject
+    DriveHelper mDriveHelper;
 
     private String mAccountName;
+    private Subscription mAuthTestSubscription;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        ((DaggerInjector) getApplication()).inject(this);
+
+        boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
+        if (wantLightTheme) {
+            setTheme(R.style.AppThemeTranslucentLight);
+        } else {
+            setTheme(R.style.AppThemeTranslucentDark);
+        }
+
+        // hack, no rotating, background task will leak activity
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
+
         setResult(RESULT_CANCELED);
 
         if (savedInstanceState == null) {
-            Intent i = AccountManager.newChooseAccountIntent(null, null, new String[]{"com.google"}, true, null, null, null, null);
+            Intent i = AccountManager.newChooseAccountIntent(
+                    null, null, new String[]{"com.google"}, true, null, null, null, null);
             startActivityForResult(i, REQUEST_ACCOUNT_PICKER);
         }
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (isSubscribed(mAuthTestSubscription)) mAuthTestSubscription.unsubscribe();
     }
 
     @Override
@@ -79,15 +114,27 @@ public class LibraryChooserActivity extends Activity implements DriveTestFragmen
     }
 
     private void startTest() {
-        // hack, idk why but, if screen rotates while the background task
-        // is executing the returned intent will lack the EXTRA_LIBRARY_ID extra
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
         // show progress
-        new ProgressFragment().show(getFragmentManager(), "progress");
+        ProgressFragment.newInstance().show(getFragmentManager(), "progress");
         // start the test
-        getFragmentManager().beginTransaction()
-                .add(DriveTestFragment.newInstance(mAccountName), "tester")
-                .commit();
+        mAuthTestSubscription = AuthTest.create(mDriveHelper.getSession(mAccountName),
+                new SimpleObserver<Boolean>() {
+                    @Override
+                    public void onNext(Boolean aBoolean) {
+                        finishSuccess();
+                    }
+                    @Override
+                    public void onError(Throwable e) {
+                        if (e instanceof UserRecoverableAuthIOException) {
+                            Intent intent = ((UserRecoverableAuthIOException) e).getIntent();
+                            if (intent != null) {
+                                startActivityForResult(intent, REQUEST_AUTH_APPROVAL);
+                                return;
+                            }
+                        }
+                        finishFailure();
+                    }
+                });
     }
 
     private void finishSuccess() {
@@ -101,22 +148,11 @@ public class LibraryChooserActivity extends Activity implements DriveTestFragmen
         finish();
     }
 
-    @Override
-    @DebugLog
-    public void onSuccess() {
-        finishSuccess();
-    }
-
-    @Override
-    public void onFailure(Intent resolveIntent) {
-        if (resolveIntent != null) {
-            startActivityForResult(resolveIntent, REQUEST_AUTH_APPROVAL);
-        } else {
-            finishFailure();
-        }
-    }
-
     public static class ProgressFragment extends DialogFragment {
+
+        public static ProgressFragment newInstance() {
+            return new ProgressFragment();
+        }
 
         @Override
         public void onCreate(Bundle savedInstanceState) {

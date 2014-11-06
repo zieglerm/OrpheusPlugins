@@ -19,7 +19,7 @@ package org.opensilk.music.plugin.drive;
 
 import android.os.StrictMode;
 
-import org.opensilk.silkdagger.DaggerApplication;
+import org.opensilk.common.dagger.DaggerApplication;
 
 import timber.log.Timber;
 

@@ -82,22 +82,17 @@ android {
 
 dependencies {
     compile 'com.jakewharton:butterknife:5.1.0'
-    compile 'com.jakewharton.timber:timber:2.3.0'
 
-    provided 'com.squareup.dagger:dagger-compiler:1.2.+'
-    compile 'com.squareup.dagger:dagger:1.2.+'
-    compile 'org.opensilk.silkdagger:libsilkdagger:0.2.2-SNAPSHOT@aar'
-
-    compile ('com.google.api-client:google-api-client-android:1.18.0-rc') {
+    compile ('com.google.api-client:google-api-client-android:1.19.0') {
         exclude module: 'httpclient'
     }
-    compile ('com.google.apis:google-api-services-drive:v2-rev127-1.18.0-rc') {
+    compile ('com.google.apis:google-api-services-drive:v2-rev151-1.19.0') {
         exclude module: 'httpclient'
     }
-    compile ('com.google.api-client:google-api-client-gson:1.18.0-rc') {
+    compile ('com.google.api-client:google-api-client-gson:1.19.0') {
         exclude module: 'httpclient'
     }
-    compile 'com.google.android.gms:play-services:6.1.11'
+    compile 'com.google.android.gms:play-services:6.1.71'
 
     compile project(':common')
 }

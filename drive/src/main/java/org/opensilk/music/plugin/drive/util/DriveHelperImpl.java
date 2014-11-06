@@ -18,9 +18,7 @@
 package org.opensilk.music.plugin.drive.util;
 
 import android.content.Context;
-import android.text.TextUtils;
 
-import com.google.android.gms.auth.GoogleAuthException;
 import com.google.api.client.extensions.android.http.AndroidHttp;
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.client.json.gson.GsonFactory;
@@ -28,43 +26,71 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 
 import org.opensilk.music.plugin.drive.BuildConfig;
-import org.opensilk.silkdagger.qualifier.ForApplication;
+import org.opensilk.common.dagger.qualifier.ForApplication;
 
-import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 /**
  * Created by drew on 6/15/14.
  */
+@Singleton
 public class DriveHelperImpl implements DriveHelper {
-    private static final String APP_NAME = BuildConfig.PACKAGE_NAME+"/"+BuildConfig.VERSION_NAME;
 
-    private final GoogleAccountCredential mCredentials;
-    private final Drive mDriveService;
+    static class Holder implements Session {
 
-    @Inject
-    public DriveHelperImpl(@ForApplication Context context) {
-        mCredentials = GoogleAccountCredential.usingOAuth2(context, Collections.singleton(DriveScopes.DRIVE_READONLY));
-        mDriveService = new Drive.Builder(AndroidHttp.newCompatibleTransport(),
-                GsonFactory.getDefaultInstance(), mCredentials).setApplicationName(APP_NAME).build();
-    }
+        final GoogleAccountCredential credential;
+        final Drive drive;
 
-    @Override
-    public Drive drive() {
-        return mDriveService;
-    }
+        Holder(GoogleAccountCredential credential, Drive drive) {
+            this.credential = credential;
+            this.drive = drive;
+        }
 
-    @Override
-    public void setAccountName(String accountName) {
-        if (!TextUtils.equals(mCredentials.getSelectedAccountName(), accountName)) {
-            mCredentials.setSelectedAccountName(accountName);
+        @Override
+        public Drive getDrive() {
+            return drive;
+        }
+
+        @Override
+        public GoogleAccountCredential getCredential() {
+            return credential;
         }
     }
 
-    @Override
-    public String getAuthToken() throws GoogleAuthException, IOException {
-        return mCredentials.getToken();
+    private static final String APP_NAME = BuildConfig.APPLICATION_ID+"/"+BuildConfig.VERSION_NAME;
+    private final Map<String, Holder> SESSIONS = new HashMap<>();
+
+    private final Context context;
+
+    @Inject
+    public DriveHelperImpl(@ForApplication Context context) {
+        this.context = context;
     }
+
+    @Override
+    public Session getSession(String accountName) {
+        if (SESSIONS.containsKey(accountName)) return SESSIONS.get(accountName);
+        return createSession(accountName);
+    }
+
+    @Override
+    public void destroy() {
+        SESSIONS.clear();
+    }
+
+    private Holder createSession(String accountName) {
+        final GoogleAccountCredential credential = GoogleAccountCredential.usingOAuth2(context,
+                Collections.singleton(DriveScopes.DRIVE_READONLY)).setSelectedAccountName(accountName);
+        final Drive drive = new Drive.Builder(AndroidHttp.newCompatibleTransport(),
+                GsonFactory.getDefaultInstance(), credential).setApplicationName(APP_NAME).build();
+        final Holder holder = new Holder(credential, drive);
+        SESSIONS.put(accountName, holder);
+        return holder;
+    }
+
 }

@@ -17,16 +17,17 @@
 
 package org.opensilk.music.plugin.drive.util;
 
-import com.google.android.gms.auth.GoogleAuthException;
+import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential;
 import com.google.api.services.drive.Drive;
-
-import java.io.IOException;
 
 /**
  * Created by drew on 6/15/14.
  */
 public interface DriveHelper {
-    public Drive drive();
-    public void setAccountName(String accountName);
-    public String getAuthToken() throws GoogleAuthException, IOException;
+    interface Session {
+        Drive getDrive();
+        GoogleAccountCredential getCredential();
+    }
+    Session getSession(String accountName);
+    void destroy();
 }
