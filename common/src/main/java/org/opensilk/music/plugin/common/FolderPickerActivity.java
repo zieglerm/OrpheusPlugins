@@ -31,6 +31,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.api.RemoteLibrary;
@@ -148,11 +149,18 @@ public class FolderPickerActivity extends Activity implements ServiceConnection 
         @Override
         public void onViewCreated(View view, Bundle savedInstanceState) {
             super.onViewCreated(view, savedInstanceState);
-            mAdapter = new LibraryArrayAdapter(getActivity(), mActivity.mLibrary, new LibraryInfo(mSourceIdentity, null, mFolderIdentity));
+            mAdapter = new LibraryArrayAdapter(getActivity(), mActivity.mLibrary,
+                    new LibraryInfo(mSourceIdentity, null, mFolderIdentity, null));
             mEndlessAdapter = new LibraryEndlessAdapter(getActivity(), mAdapter);
             setListAdapter(mEndlessAdapter);
             getListView().setOnItemClickListener(this);
             getListView().setOnItemLongClickListener(this);
+        }
+
+        @Override
+        public void onResume() {
+            super.onResume();
+            Toast.makeText(mActivity, R.string.toast_how_to_pick, Toast.LENGTH_LONG).show();
         }
 
         @Override
@@ -164,32 +172,27 @@ public class FolderPickerActivity extends Activity implements ServiceConnection 
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             Bundleable item = (Bundleable) mEndlessAdapter.getItem(position);
-            if (item instanceof Folder) {
-                mActivity.pushFolder(mSourceIdentity, ((Folder) item).identity);
-            } else if (item instanceof Album) {
-                mActivity.pushFolder(mSourceIdentity, ((Album) item).identity);
-            } else if (item instanceof Artist) {
-                mActivity.pushFolder(mSourceIdentity, ((Artist) item).identity);
+            if ((item instanceof Folder)
+                    || (item instanceof Album)
+                    || (item instanceof Artist)) {
+                mActivity.pushFolder(mSourceIdentity, item.getIdentity());
+            } else {
+                Toast.makeText(mActivity, R.string.err_song_click, Toast.LENGTH_SHORT).show();
             }
         }
 
         @Override
         public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long id) {
             Bundleable item = (Bundleable) mEndlessAdapter.getItem(position);
-            if (item instanceof Folder) {
-                Folder f = (Folder) item;
-                mActivity.onFolderSelected(f.identity, f.name);
+            if ((item instanceof Folder)
+                    || (item instanceof Album)
+                    || (item instanceof Artist)) {
+                mActivity.onFolderSelected(item.getIdentity(), item.getName());
                 return true;
-            } else if (item instanceof Album) {
-                Album a = (Album) item;
-                mActivity.onFolderSelected(a.identity, a.name);
-                return true;
-            } else if (item instanceof Artist) {
-                Artist a = (Artist) item;
-                mActivity.onFolderSelected(a.identity, a.name);
-                return true;
+            } else {
+                Toast.makeText(mActivity, R.string.err_song_click, Toast.LENGTH_SHORT).show();
+                return false;
             }
-            return false;
         }
     }
 }
