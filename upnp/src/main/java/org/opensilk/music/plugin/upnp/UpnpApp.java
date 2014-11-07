@@ -18,17 +18,50 @@
 package org.opensilk.music.plugin.upnp;
 
 import android.app.Application;
+import android.content.Context;
 import android.os.StrictMode;
+
+import org.opensilk.common.dagger.DaggerApplication;
+import org.opensilk.common.dagger.qualifier.ForApplication;
+import org.opensilk.music.plugin.common.CommonModule;
+import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
+import org.opensilk.music.plugin.upnp.ui.SettingsActivity;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.inject.Singleton;
+
+import dagger.Provides;
 import timber.log.Timber;
 
 /**
  * Created by drew on 6/9/14.
  */
-public class UpnpApp extends Application {
+public class UpnpApp extends DaggerApplication {
+
+    @dagger.Module(
+            includes = CommonModule.class,
+            injects = {
+                    LibraryPickerActivity.class,
+                    SettingsActivity.SettingsFragment.class,
+                    UpnpLibraryService.class,
+            },
+            library = true
+    )
+    public static class Module {
+        public UpnpApp app;
+
+        public Module(UpnpApp app) {
+            this.app = app;
+        }
+
+        @Provides @Singleton @ForApplication
+        public Context provideAppContext() {
+            return app;
+        }
+
+    }
 
     @Override
     public void onCreate() {
@@ -71,4 +104,10 @@ public class UpnpApp extends Application {
         }
     }
 
+    @Override
+    protected Object[] getModules() {
+        return new Object[] {
+                new Module(this),
+        };
+    }
 }

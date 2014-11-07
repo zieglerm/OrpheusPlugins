@@ -18,9 +18,9 @@
 package org.opensilk.music.plugin.drive;
 
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.google.android.gms.auth.GoogleAuthException;
@@ -31,9 +31,11 @@ import com.google.api.services.drive.model.FileList;
 import org.opensilk.music.api.OrpheusApi.Error;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.meta.LibraryInfo;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
-import org.opensilk.music.plugin.common.PluginUtil;
+import org.opensilk.music.plugin.common.LibraryPreferences;
+import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.ui.SettingsActivity;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
@@ -57,6 +59,7 @@ import static org.opensilk.music.api.OrpheusApi.Ability.*;
  */
 public class DriveLibraryService extends RemoteLibraryService {
 
+    public static final String DEFAULT_ROOT_FOLDER = "root";
     public static final String BASE_QUERY = " in parents and trashed=false ";
     public static final String FOLDER_MIMETYPE = "application/vnd.google-apps.folder";
     public static final String AUDIO_MIME_WILDCARD = "audio";
@@ -64,14 +67,14 @@ public class DriveLibraryService extends RemoteLibraryService {
     public static final String FOLDER_SONG_QUERY = " (mimeType='"+FOLDER_MIMETYPE+"' or mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
     public static final String SONG_QUERY = " (mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
 
-    @Inject
-    protected DriveHelper mDriveHelper;
+    @Inject DriveHelper mDriveHelper;
+    @Inject PluginPreferences mPluginPrefs;
+    @Inject LibraryPreferences mLibraryPrefs;
 
     @Override
     public void onCreate() {
         super.onCreate();
-        DaggerInjector injector = (DaggerInjector) getApplication();
-        injector.inject(this);
+        ((DaggerInjector) getApplication()).inject(this);
     }
 
     @Override
@@ -100,27 +103,17 @@ public class DriveLibraryService extends RemoteLibraryService {
     }
 
     @Override
-    protected void pause() {
-        //noop
-    }
-
-    @Override
-    protected void resume() {
-        //noop
-    }
-
-    @Override
     protected void browseFolders(String libraryIdentity, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback) {
         final DriveHelper.Session session = mDriveHelper.getSession(libraryIdentity);
         final String fID;
         if (TextUtils.isEmpty(folderIdentity)) {
-            String root = getDefaultFolder(libraryIdentity);
+            String root = mLibraryPrefs.getRootFolder(libraryIdentity);
             if (!TextUtils.isEmpty(root)) {
                 // use preferred root
                 fID = "'"+root+"'";
             } else {
                 // use real root
-                fID = "'root'";
+                fID = "'"+DEFAULT_ROOT_FOLDER+"'";
             }
         } else {
             fID = "'"+folderIdentity+"'";
@@ -164,16 +157,10 @@ public class DriveLibraryService extends RemoteLibraryService {
         THREAD_POOL_EXECUTOR.execute(r);
     }
 
-    /*
-     *
-     */
-
-    private String getDefaultFolder(String libraryIdentity) {
-        return getSettings(libraryIdentity).getString(SettingsActivity.SettingsFragment.ROOT_FOLDER, null);
-    }
-
-    private SharedPreferences getSettings(String libraryIdentity) {
-        return getSharedPreferences(PluginUtil.posixSafe(libraryIdentity), MODE_PRIVATE);
+    @Nullable
+    @Override
+    protected LibraryInfo getDefaultLibraryInfo() {
+        return mPluginPrefs.getDefaultLibraryInfo();
     }
 
     /**
@@ -187,7 +174,8 @@ public class DriveLibraryService extends RemoteLibraryService {
         private final boolean songsOnly;
         private final Result callback;
 
-        ListFilesRunner(DriveHelper.Session driveSession, int maxResults, String query, String paginationToken, boolean songsOnly, Result callback) {
+        ListFilesRunner(DriveHelper.Session driveSession, int maxResults, String query,
+                        String paginationToken, boolean songsOnly, Result callback) {
             this.driveSession = driveSession;
             this.maxResults = maxResults;
             this.query = query;

@@ -18,9 +18,13 @@
 package org.opensilk.music.plugin.common;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.Fragment;
 import android.os.Bundle;
 import android.view.ViewGroup;
+import android.webkit.WebView;
 import android.widget.FrameLayout;
 
 import org.opensilk.music.api.OrpheusApi;
@@ -55,5 +59,22 @@ public abstract class AbsSettingsActivity extends Activity {
     }
 
     protected abstract Fragment getSettingsFragment(String libraryId);
+
+    public static void showLicences(Activity activity) {
+        new LicensesDialog().show(activity.getFragmentManager(), "licenses");
+    }
+
+    public static class LicensesDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            final WebView webView = new WebView(getActivity());
+            webView.loadUrl("file:///android_asset/licenses.html");
+            return new AlertDialog.Builder(getActivity())
+                    .setTitle(R.string.about_licenses)
+                    .setView(webView)
+                    .setPositiveButton(android.R.string.ok, null)
+                    .create();
+        }
+    }
 
 }

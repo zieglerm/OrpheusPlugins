@@ -20,10 +20,10 @@ package org.opensilk.music.plugin.upnp;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import org.fourthline.cling.android.AndroidUpnpService;
@@ -38,21 +38,23 @@ import org.fourthline.cling.support.contentdirectory.callback.Browse;
 import org.fourthline.cling.support.contentdirectory.callback.Search;
 import org.fourthline.cling.support.model.BrowseFlag;
 import org.fourthline.cling.support.model.DIDLContent;
-import org.fourthline.cling.support.model.SortCriterion;
 import org.fourthline.cling.support.model.container.Container;
 import org.fourthline.cling.support.model.container.MusicAlbum;
 import org.fourthline.cling.support.model.container.MusicArtist;
 import org.fourthline.cling.support.model.item.AudioItem;
 import org.fourthline.cling.support.model.item.Item;
 import org.fourthline.cling.support.model.item.MusicTrack;
+import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.music.api.OrpheusApi.Error;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.meta.LibraryInfo;
 import org.opensilk.music.api.model.Album;
 import org.opensilk.music.api.model.Artist;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
-import org.opensilk.music.plugin.common.PluginUtil;
+import org.opensilk.music.plugin.common.LibraryPreferences;
+import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
 import org.opensilk.music.plugin.upnp.ui.SettingsActivity;
 import org.opensilk.music.plugin.upnp.util.Helpers;
@@ -63,6 +65,8 @@ import org.opensilk.upnp.contentdirectory.callback.GetFeatureList;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.inject.Inject;
+
 import hugo.weaving.DebugLog;
 
 import static org.opensilk.music.api.OrpheusApi.Ability.*;
@@ -72,11 +76,17 @@ import static org.opensilk.music.api.OrpheusApi.Ability.*;
  */
 public class UpnpLibraryService extends RemoteLibraryService implements ServiceConnection {
 
+    public static final String DEFAULT_ROOT_FOLDER = "0";
+
     private AndroidUpnpService mUpnpService;
+
+    @Inject PluginPreferences mPluginPrefs;
+    @Inject LibraryPreferences mLibraryPrefs;
 
     @Override
     public void onCreate() {
         super.onCreate();
+        ((DaggerInjector) getApplication()).getObjectGraph().inject(this);
         bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
     }
 
@@ -131,7 +141,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             if (rs != null) {
                 // Requested root folder
                 if (TextUtils.isEmpty(folderIdentity)) {
-                    String rootFolder = getDefaultFolder(libraryIdentity);
+                    String rootFolder = mLibraryPrefs.getRootFolder(libraryIdentity);
                     if (!TextUtils.isEmpty(rootFolder)) {
                         // use preferred root folder
                         doBrowse(rs, rootFolder, maxResults, paginationBundle, callback, false);
@@ -169,7 +179,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         if (mUpnpService != null) {
             RemoteService rs = acquireContentDirectoryService(libraryIdentity);
             if (rs != null) {
-                String searchFolder = getSearchFolder(libraryIdentity);
+                String searchFolder = mLibraryPrefs.getSearchFolder(libraryIdentity);
                 if (!TextUtils.isEmpty(searchFolder)) {
                     // use preferred search folder
                     doSearch(rs, searchFolder, query, maxResults, paginationBundle, callback);
@@ -183,6 +193,12 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         try {
             callback.failure(Error.RETRY, "Upnp Service not bound yet");
         } catch (RemoteException ignored) {}
+    }
+
+    @Nullable
+    @Override
+    protected LibraryInfo getDefaultLibraryInfo() {
+        return mPluginPrefs.getDefaultLibraryInfo();
     }
 
     /*
@@ -206,18 +222,6 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     /*
      *
      */
-
-    private String getDefaultFolder(String libraryIdentity) {
-        return getSettings(libraryIdentity).getString(SettingsActivity.SettingsFragment.ROOT_FOLDER, null);
-    }
-
-    private String getSearchFolder(String libraryIdentity) {
-        return getSettings(libraryIdentity).getString(SettingsActivity.SettingsFragment.SEARCH_FOLDER, null);
-    }
-
-    private SharedPreferences getSettings(String libraryIdentity) {
-        return getSharedPreferences(PluginUtil.posixSafe(libraryIdentity), MODE_PRIVATE);
-    }
 
     private RemoteService acquireContentDirectoryService(String deviceIdentity) {
         RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(deviceIdentity), false);
@@ -495,7 +499,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 }
             }
             if (fId == null) {
-                fId = "0";
+                fId = DEFAULT_ROOT_FOLDER;
             }
             doExecute(fId);
         }

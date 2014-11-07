@@ -17,16 +17,54 @@
 
 package org.opensilk.music.plugin.drive;
 
+import android.app.Application;
+import android.content.Context;
 import android.os.StrictMode;
 
 import org.opensilk.common.dagger.DaggerApplication;
+import org.opensilk.common.dagger.qualifier.ForApplication;
+import org.opensilk.music.plugin.common.CommonModule;
+import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
+import org.opensilk.music.plugin.drive.ui.SettingsActivity;
+import org.opensilk.music.plugin.drive.util.DriveHelper;
+import org.opensilk.music.plugin.drive.util.DriveHelperImpl;
 
+import javax.inject.Singleton;
+
+import dagger.Provides;
 import timber.log.Timber;
 
 /**
  * Created by drew on 6/12/14.
  */
 public class DriveApp extends DaggerApplication {
+
+    @dagger.Module(
+            includes = CommonModule.class,
+            injects = {
+                    LibraryChooserActivity.class,
+                    SettingsActivity.SettingsFragment.class,
+                    DriveLibraryService.class,
+            },
+            library = true
+    )
+    public static class Module {
+        private final Application app;
+
+        public Module(Application app) {
+            this.app = app;
+        }
+
+        @Provides @Singleton @ForApplication
+        public Context provideAppContext() {
+            return app.getApplicationContext();
+        }
+
+        @Provides @Singleton
+        public DriveHelper provideDriveApi(DriveHelperImpl api) {
+            return api;
+        }
+    }
 
     @Override
     public void onCreate() {
@@ -54,7 +92,7 @@ public class DriveApp extends DaggerApplication {
     @Override
     protected Object[] getModules() {
         return new Object[] {
-                new AppModule(this)
+                new Module(this)
         };
     }
 }
