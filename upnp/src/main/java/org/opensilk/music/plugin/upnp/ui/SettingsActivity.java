@@ -29,14 +29,14 @@ import android.text.TextUtils;
 import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.music.plugin.common.AbsSettingsActivity;
 import org.opensilk.music.plugin.common.FolderPickerActivity;
-import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.upnp.R;
 import org.opensilk.music.plugin.upnp.UpnpLibraryService;
 
-import javax.inject.Inject;
-
-import static org.opensilk.music.plugin.common.LibraryPreferences.*;
+import static org.opensilk.music.plugin.common.LibraryPreferences.ROOT_FOLDER;
+import static org.opensilk.music.plugin.common.LibraryPreferences.ROOT_FOLDER_NAME;
+import static org.opensilk.music.plugin.common.LibraryPreferences.SEARCH_FOLDER;
+import static org.opensilk.music.plugin.common.LibraryPreferences.SEARCH_FOLDER_NAME;
 
 /**
  * Created by drew on 7/18/14.
@@ -61,13 +61,10 @@ public class SettingsActivity extends AbsSettingsActivity {
         }
 
         private String mLibraryId;
-        @Inject PluginPreferences mPluginPrefs;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-
-            ((DaggerInjector) getActivity().getApplication()).inject(this);
 
             mLibraryId = getArguments().getString("__id");
             // Change preferences file per Orpheus api guidelines
@@ -105,8 +102,6 @@ public class SettingsActivity extends AbsSettingsActivity {
                                 .putString(pref, pickedFolder)
                                 .putString(titlePref, pickedFolderTitle).apply();
                         findPreference(pref).setSummary(pickedFolderTitle);
-                        // Update default
-                        mPluginPrefs.updateDefaultLibraryInfo(mLibraryId, pickedFolder, pickedFolderTitle);
                     }
                 }
             } else {

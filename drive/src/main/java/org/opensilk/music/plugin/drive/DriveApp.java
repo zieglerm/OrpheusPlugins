@@ -23,7 +23,6 @@ import android.os.StrictMode;
 
 import org.opensilk.common.dagger.DaggerApplication;
 import org.opensilk.common.dagger.qualifier.ForApplication;
-import org.opensilk.music.plugin.common.CommonModule;
 import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.ui.SettingsActivity;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
@@ -40,10 +39,8 @@ import timber.log.Timber;
 public class DriveApp extends DaggerApplication {
 
     @dagger.Module(
-            includes = CommonModule.class,
             injects = {
                     LibraryChooserActivity.class,
-                    SettingsActivity.SettingsFragment.class,
                     DriveLibraryService.class,
             },
             library = true

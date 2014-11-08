@@ -50,6 +50,5 @@ dependencies {
     compile 'com.squareup.dagger:dagger:1.2.2'
     compile 'io.reactivex:rxandroid:0.22.0'
     compile 'com.jakewharton.timber:timber:2.3.0'
-    compile 'com.google.code.gson:gson:2.3'
 
 }

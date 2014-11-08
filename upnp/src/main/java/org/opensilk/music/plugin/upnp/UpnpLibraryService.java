@@ -23,7 +23,6 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import org.fourthline.cling.android.AndroidUpnpService;
@@ -48,13 +47,11 @@ import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.music.api.OrpheusApi.Error;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
-import org.opensilk.music.api.meta.LibraryInfo;
 import org.opensilk.music.api.model.Album;
 import org.opensilk.music.api.model.Artist;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.common.LibraryPreferences;
-import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
 import org.opensilk.music.plugin.upnp.ui.SettingsActivity;
 import org.opensilk.music.plugin.upnp.util.Helpers;
@@ -69,7 +66,8 @@ import javax.inject.Inject;
 
 import hugo.weaving.DebugLog;
 
-import static org.opensilk.music.api.OrpheusApi.Ability.*;
+import static org.opensilk.music.api.OrpheusApi.Ability.SEARCH;
+import static org.opensilk.music.api.OrpheusApi.Ability.SETTINGS;
 
 /**
  * Created by drew on 6/8/14.
@@ -80,7 +78,6 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     private AndroidUpnpService mUpnpService;
 
-    @Inject PluginPreferences mPluginPrefs;
     @Inject LibraryPreferences mLibraryPrefs;
 
     @Override
@@ -193,12 +190,6 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         try {
             callback.failure(Error.RETRY, "Upnp Service not bound yet");
         } catch (RemoteException ignored) {}
-    }
-
-    @Nullable
-    @Override
-    protected LibraryInfo getDefaultLibraryInfo() {
-        return mPluginPrefs.getDefaultLibraryInfo();
     }
 
     /*

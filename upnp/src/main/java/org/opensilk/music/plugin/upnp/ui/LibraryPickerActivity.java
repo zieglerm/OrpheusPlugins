@@ -36,12 +36,8 @@ import org.fourthline.cling.registry.RegistryListener;
 import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.api.meta.LibraryInfo;
-import org.opensilk.music.plugin.common.LibraryPreferences;
-import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.upnp.R;
 import org.opensilk.music.plugin.upnp.UpnpServiceService;
-
-import javax.inject.Inject;
 
 import butterknife.ButterKnife;
 import butterknife.OnClick;
@@ -54,14 +50,9 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
     AndroidUpnpService upnpService;
     ArrayAdapter<DeviceHolder> listAdapter;
 
-    @Inject PluginPreferences pluginPrefs;
-    @Inject LibraryPreferences libraryPrefs;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        ((DaggerInjector) getApplication()).inject(this);
 
         boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
         if (wantLightTheme) {
@@ -92,12 +83,7 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
     @Override
     protected void onListItemClick(ListView l, View v, int position, long id) {
         final DeviceHolder holder = listAdapter.getItem(position);
-        LibraryInfo libraryInfo = new LibraryInfo(holder.id, holder.label,
-                // Populate the root folder if we already set them
-                libraryPrefs.getRootFolder(holder.id),
-                libraryPrefs.getRootFolderName(holder.id));
-        // update default
-        pluginPrefs.setDefaultLibraryInfo(libraryInfo);
+        LibraryInfo libraryInfo = new LibraryInfo(holder.id, holder.label, null, null);
         Intent i = new Intent()
                 .putExtra(OrpheusApi.EXTRA_LIBRARY_ID, holder.id)
                 .putExtra(OrpheusApi.EXTRA_LIBRARY_INFO, libraryInfo);

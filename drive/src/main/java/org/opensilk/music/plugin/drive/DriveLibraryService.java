@@ -68,7 +68,6 @@ public class DriveLibraryService extends RemoteLibraryService {
     public static final String SONG_QUERY = " (mimeType contains '"+AUDIO_MIME_WILDCARD+"' or mimeType='"+AUDIO_OGG_MIMETYPE+"')";
 
     @Inject DriveHelper mDriveHelper;
-    @Inject PluginPreferences mPluginPrefs;
     @Inject LibraryPreferences mLibraryPrefs;
 
     @Override
@@ -155,12 +154,6 @@ public class DriveLibraryService extends RemoteLibraryService {
         final String q = "title contains '"+query+"' and trashed=false and" + FOLDER_SONG_QUERY;
         ListFilesRunner r = new ListFilesRunner(session, maxResults, q, paginationToken, false, callback);
         THREAD_POOL_EXECUTOR.execute(r);
-    }
-
-    @Nullable
-    @Override
-    protected LibraryInfo getDefaultLibraryInfo() {
-        return mPluginPrefs.getDefaultLibraryInfo();
     }
 
     /**

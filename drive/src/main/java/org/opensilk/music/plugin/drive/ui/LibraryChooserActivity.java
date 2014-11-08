@@ -32,8 +32,6 @@ import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.common.rx.SimpleObserver;
 import org.opensilk.music.api.OrpheusApi;
 import org.opensilk.music.api.meta.LibraryInfo;
-import org.opensilk.music.plugin.common.LibraryPreferences;
-import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.drive.R;
 import org.opensilk.music.plugin.drive.util.AuthTest;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
@@ -54,8 +52,6 @@ public class LibraryChooserActivity extends Activity {
     public static final int REQUEST_AUTH_APPROVAL = RESULT_FIRST_USER << 2;
 
     @Inject DriveHelper mDriveHelper;
-    @Inject PluginPreferences mPluginPrefs;
-    @Inject LibraryPreferences mLibraryPrefs;
 
     private String mAccountName;
     private Subscription mAuthTestSubscription;
@@ -142,12 +138,7 @@ public class LibraryChooserActivity extends Activity {
     }
 
     private void finishSuccess() {
-        LibraryInfo libraryInfo = new LibraryInfo(mAccountName, mAccountName,
-                // Populate the root folder if we already set them
-                mLibraryPrefs.getRootFolder(mAccountName),
-                mLibraryPrefs.getRootFolderName(mAccountName));
-        // save the new libraryInfo
-        mPluginPrefs.setDefaultLibraryInfo(libraryInfo);
+        LibraryInfo libraryInfo = new LibraryInfo(mAccountName, mAccountName, null, null);
         Intent i = new Intent()
                 .putExtra(OrpheusApi.EXTRA_LIBRARY_ID, mAccountName)
                 .putExtra(OrpheusApi.EXTRA_LIBRARY_INFO, libraryInfo);

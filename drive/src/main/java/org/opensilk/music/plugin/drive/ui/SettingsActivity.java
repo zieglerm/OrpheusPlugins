@@ -18,9 +18,6 @@
 package org.opensilk.music.plugin.drive.ui;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
 import android.app.Fragment;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -28,19 +25,16 @@ import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.text.TextUtils;
-import android.webkit.WebView;
 
 import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.music.plugin.common.AbsSettingsActivity;
 import org.opensilk.music.plugin.common.FolderPickerActivity;
-import org.opensilk.music.plugin.common.PluginPreferences;
 import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.drive.DriveLibraryService;
 import org.opensilk.music.plugin.drive.R;
 
-import javax.inject.Inject;
-
-import static org.opensilk.music.plugin.common.LibraryPreferences.*;
+import static org.opensilk.music.plugin.common.LibraryPreferences.ROOT_FOLDER;
+import static org.opensilk.music.plugin.common.LibraryPreferences.ROOT_FOLDER_NAME;
 
 /**
  * Created by drew on 7/18/14.
@@ -65,13 +59,10 @@ public class SettingsActivity extends AbsSettingsActivity {
         }
 
         private String mLibraryId;
-        @Inject PluginPreferences mPluginPrefs;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
-
-            ((DaggerInjector) getActivity().getApplication()).inject(this);
 
             mLibraryId = getArguments().getString("__id");
             // Change preferences file per Orpheus api guidelines
@@ -100,8 +91,6 @@ public class SettingsActivity extends AbsSettingsActivity {
                                 .putString(ROOT_FOLDER, pickedFolder)
                                 .putString(ROOT_FOLDER_NAME, pickedFolderTitle).apply();
                         findPreference(ROOT_FOLDER).setSummary(pickedFolderTitle);
-                        // Update default prefs
-                        mPluginPrefs.updateDefaultLibraryInfo(mLibraryId, pickedFolder, pickedFolderTitle);
                     }
                 }
             } else {

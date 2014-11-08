@@ -17,15 +17,11 @@
 
 package org.opensilk.music.plugin.upnp;
 
-import android.app.Application;
 import android.content.Context;
 import android.os.StrictMode;
 
 import org.opensilk.common.dagger.DaggerApplication;
 import org.opensilk.common.dagger.qualifier.ForApplication;
-import org.opensilk.music.plugin.common.CommonModule;
-import org.opensilk.music.plugin.upnp.ui.LibraryPickerActivity;
-import org.opensilk.music.plugin.upnp.ui.SettingsActivity;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,10 +37,7 @@ import timber.log.Timber;
 public class UpnpApp extends DaggerApplication {
 
     @dagger.Module(
-            includes = CommonModule.class,
             injects = {
-                    LibraryPickerActivity.class,
-                    SettingsActivity.SettingsFragment.class,
                     UpnpLibraryService.class,
             },
             library = true
