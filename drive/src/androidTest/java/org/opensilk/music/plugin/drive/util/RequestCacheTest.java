@@ -24,12 +24,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.opensilk.music.api.callback.Result;
-import org.opensilk.music.plugin.drive.DriveLibraryService;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static org.fest.assertions.api.Assertions.assertThat;
@@ -39,7 +37,7 @@ import static org.fest.assertions.api.Assertions.assertThat;
  */
 @RunWith(RobolectricTestRunner.class)
 @Config( manifest = Config.NONE)
-public class DriveCacheTest {
+public class RequestCacheTest {
 
     static class TestResult extends Result.Stub {
         List<Bundle> list;
@@ -62,7 +60,7 @@ public class DriveCacheTest {
 
     final TestResult result1 = new TestResult();
 
-    final DriveCache cache = new DriveCache();
+    final RequestCache cache = new RequestCache();
 
     @Before
     public void setUp() {

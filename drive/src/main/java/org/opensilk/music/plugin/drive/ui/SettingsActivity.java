@@ -33,7 +33,7 @@ import org.opensilk.music.plugin.common.FolderPickerActivity;
 import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.drive.DriveLibraryService;
 import org.opensilk.music.plugin.drive.R;
-import org.opensilk.music.plugin.drive.util.DriveCache;
+import org.opensilk.music.plugin.drive.util.RequestCache;
 
 import javax.inject.Inject;
 
@@ -63,7 +63,7 @@ public class SettingsActivity extends AbsSettingsActivity {
             return f;
         }
 
-        @Inject DriveCache mCache;
+        @Inject RequestCache mCache;
 
         private String mLibraryId;
 

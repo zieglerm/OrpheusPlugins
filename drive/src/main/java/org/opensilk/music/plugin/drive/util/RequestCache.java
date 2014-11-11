@@ -36,12 +36,12 @@ import timber.log.Timber;
  * Created by drew on 11/11/14.
  */
 @Singleton
-public class DriveCache {
+public class RequestCache {
 
     final Map<String, List<Bundle>> CACHE = Collections.synchronizedMap(new LinkedHashMap<String, List<Bundle>>());
 
     @Inject
-    public DriveCache() {
+    public RequestCache() {
 
     }
 

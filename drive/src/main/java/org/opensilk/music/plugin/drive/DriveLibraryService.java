@@ -35,7 +35,7 @@ import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.common.LibraryPreferences;
 import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.ui.SettingsActivity;
-import org.opensilk.music.plugin.drive.util.DriveCache;
+import org.opensilk.music.plugin.drive.util.RequestCache;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.music.plugin.drive.util.Helpers;
 import org.opensilk.common.dagger.DaggerInjector;
@@ -74,7 +74,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
     @Inject DriveHelper mDriveHelper;
     @Inject LibraryPreferences mLibraryPrefs;
-    @Inject DriveCache mCache;
+    @Inject RequestCache mCache;
 
     final List<FileSubscriber> activeSubscribers = Collections.synchronizedList(new ArrayList<FileSubscriber>(4));
 
