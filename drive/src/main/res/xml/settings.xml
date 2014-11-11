@@ -24,6 +24,11 @@
         android:key="root_folder_identity"
         android:title="@string/settings_root_folder"/>
 
+    <Preference
+        android:key="clear_cache"
+        android:title="@string/clear_cache"
+        android:summary="@string/clear_cache_summary"/>
+
     <!-- General app info -->
     <PreferenceCategory
         android:title="@string/settings_about">

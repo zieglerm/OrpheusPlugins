@@ -29,9 +29,14 @@
     <!-- Settings-->
     <string name="about_me" translatable="false">OpenSilk Productions LLC</string>
     <string name="about_me_url" translatable="false">http://opensilk.org</string>
+    <string name="clear_cache">Clear request cache</string>
+    <string name="clear_cache_summary">Only needed if getting stale results (must restart Orpheus after)</string>
 
     <!-- Orpheus library menu overrides -->
     <string name="menu_change_source">Select account</string>
     <string name="menu_library_settings">Drive settings</string>
+
+    <!--Toast-->
+    <string name="msg_cache_cleared">Cache cleared</string>
 
 </resources>

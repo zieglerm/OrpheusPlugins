@@ -35,6 +35,7 @@ import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.common.LibraryPreferences;
 import org.opensilk.music.plugin.drive.ui.LibraryChooserActivity;
 import org.opensilk.music.plugin.drive.ui.SettingsActivity;
+import org.opensilk.music.plugin.drive.util.DriveCache;
 import org.opensilk.music.plugin.drive.util.DriveHelper;
 import org.opensilk.music.plugin.drive.util.Helpers;
 import org.opensilk.common.dagger.DaggerInjector;
@@ -43,9 +44,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.inject.Inject;
 
@@ -75,6 +74,9 @@ public class DriveLibraryService extends RemoteLibraryService {
 
     @Inject DriveHelper mDriveHelper;
     @Inject LibraryPreferences mLibraryPrefs;
+    @Inject DriveCache mCache;
+
+    final List<FileSubscriber> activeSubscribers = Collections.synchronizedList(new ArrayList<FileSubscriber>(4));
 
     @Override
     public void onCreate() {
@@ -117,7 +119,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
         if (requestInflight(cacheKey, callback)) return;
 
-        if (tryForCache(cacheKey, startpos, maxResults, callback)) return;
+        if (mCache.get(cacheKey, startpos, maxResults, callback)) return;
 
         final FileSubscriber subscriber = new FileSubscriber(session, maxResults, false, cacheKey, callback);
         activeSubscribers.add(subscriber);
@@ -134,7 +136,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
         if (requestInflight(cacheKey, callback)) return;
 
-        if (tryForCache(cacheKey, startpos, maxResults, callback)) return;
+        if (mCache.get(cacheKey, startpos, maxResults, callback)) return;
 
         final FileSubscriber subscriber = new FileSubscriber(session, maxResults, true, cacheKey, callback);
         activeSubscribers.add(subscriber);
@@ -150,7 +152,7 @@ public class DriveLibraryService extends RemoteLibraryService {
 
         if (requestInflight(q, callback)) return;
 
-        if (tryForCache(q, startpos, maxResults, callback)) return;
+        if (mCache.get(q, startpos, maxResults, callback)) return;
 
         final FileSubscriber subscriber = new FileSubscriber(session, maxResults, false, q, callback);
         activeSubscribers.add(subscriber);
@@ -172,8 +174,6 @@ public class DriveLibraryService extends RemoteLibraryService {
         }
     }
 
-    final List<FileSubscriber> activeSubscribers = Collections.synchronizedList(new ArrayList<FileSubscriber>(4));
-
     boolean requestInflight(String cacheKey, Result callback) {
         synchronized (activeSubscribers) {
             for (FileSubscriber s : activeSubscribers) {
@@ -186,43 +186,9 @@ public class DriveLibraryService extends RemoteLibraryService {
         }
     }
 
-    static final Map<String, List<Bundle>> CACHE = Collections.synchronizedMap(new LinkedHashMap<String, List<Bundle>>());
-
-    void putInCache(String cacheKey, List<Bundle> bundles) {
-        CACHE.put(cacheKey, bundles);
-    }
-
-    boolean tryForCache(String cacheKey, int startpos, int maxResults, Result callback) {
-        synchronized (CACHE) {
-            if (CACHE.containsKey(cacheKey)) {
-                Timber.d("tryForCache() hit=%s", cacheKey);
-                List<Bundle> list = CACHE.get(cacheKey);
-                int start = startpos < list.size() ? startpos : list.size();
-                int end = startpos+maxResults < list.size() ? startpos+maxResults : list.size();
-                Timber.d("tryForCache() cachesize=%d, start=%d, end=%d, startPos=%d maxResults=%d",
-                        list.size(), start, end, startpos, maxResults);
-                final List<Bundle> results;
-                if (start < end) {
-                    results = list.subList(start, end);
-                } else {
-                    results = Collections.emptyList();
-                }
-                final Bundle token;
-                if (end < list.size()) {
-                    token = new Bundle(1);
-                    token.putInt("startpos", end);
-                } else {
-                    token = null;
-                }
-                try {
-                    callback.success(results, token);
-                } catch (RemoteException ignored) {}
-                return true;
-            }
-            return false;
-        }
-    }
-
+    // Drive api wont let us sort so we fetch everything at once
+    // sort it ourselves and cache the result so pagination works
+    // as Orpheus expects it to
     Observable<Observable<File>> getFiles(final DriveHelper.Session driveSession,
                                           final String query) {
         return Observable.create(new Observable.OnSubscribe<Observable<File>>() {
@@ -357,7 +323,7 @@ public class DriveLibraryService extends RemoteLibraryService {
             }
 
             // cache
-            putInCache(cacheKey, bundlesCache);
+            mCache.put(cacheKey, bundlesCache);
 
             // if cache is larger than initial results add page token
             Bundle token = null;

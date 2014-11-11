@@ -25,6 +25,7 @@ import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceFragment;
 import android.text.TextUtils;
+import android.widget.Toast;
 
 import org.opensilk.common.dagger.DaggerInjector;
 import org.opensilk.music.plugin.common.AbsSettingsActivity;
@@ -32,6 +33,9 @@ import org.opensilk.music.plugin.common.FolderPickerActivity;
 import org.opensilk.music.plugin.common.PluginUtil;
 import org.opensilk.music.plugin.drive.DriveLibraryService;
 import org.opensilk.music.plugin.drive.R;
+import org.opensilk.music.plugin.drive.util.DriveCache;
+
+import javax.inject.Inject;
 
 import static org.opensilk.music.plugin.common.LibraryPreferences.ROOT_FOLDER;
 import static org.opensilk.music.plugin.common.LibraryPreferences.ROOT_FOLDER_NAME;
@@ -48,6 +52,7 @@ public class SettingsActivity extends AbsSettingsActivity {
 
     public static class SettingsFragment extends PreferenceFragment implements Preference.OnPreferenceClickListener {
 
+        public static final String CLEAR_CACHE = "clear_cache";
         public static final String LICENSES = "licenses";
 
         public static SettingsFragment newInstance(String libraryId) {
@@ -58,11 +63,15 @@ public class SettingsActivity extends AbsSettingsActivity {
             return f;
         }
 
+        @Inject DriveCache mCache;
+
         private String mLibraryId;
 
         @Override
         public void onCreate(Bundle savedInstanceState) {
             super.onCreate(savedInstanceState);
+
+            ((DaggerInjector) getActivity().getApplication()).inject(this);
 
             mLibraryId = getArguments().getString("__id");
             // Change preferences file per Orpheus api guidelines
@@ -75,6 +84,9 @@ public class SettingsActivity extends AbsSettingsActivity {
             if (!TextUtils.isEmpty(rootFolderTitle)) {
                 findPreference(ROOT_FOLDER).setSummary(rootFolderTitle);
             }
+
+            // clear cache
+            findPreference(CLEAR_CACHE).setOnPreferenceClickListener(this);
 
             // licenses dialog
             findPreference(LICENSES).setOnPreferenceClickListener(this);
@@ -108,6 +120,10 @@ public class SettingsActivity extends AbsSettingsActivity {
                 getPreferenceManager().getSharedPreferences().edit().remove(ROOT_FOLDER).remove(ROOT_FOLDER_NAME).apply();
                 findPreference(ROOT_FOLDER).setSummary(null);
                 startActivityForResult(i, 0);
+                return true;
+            } else if (findPreference(CLEAR_CACHE) == preference) {
+                mCache.clear();
+                Toast.makeText(getActivity(), R.string.msg_cache_cleared, Toast.LENGTH_SHORT).show();
                 return true;
             } else if (findPreference(LICENSES) == preference) {
                 AbsSettingsActivity.showLicences(getActivity());

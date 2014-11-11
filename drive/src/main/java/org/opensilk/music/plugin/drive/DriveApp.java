@@ -41,6 +41,7 @@ public class DriveApp extends DaggerApplication {
     @dagger.Module(
             injects = {
                     LibraryChooserActivity.class,
+                    SettingsActivity.SettingsFragment.class,
                     DriveLibraryService.class,
             },
             library = true
