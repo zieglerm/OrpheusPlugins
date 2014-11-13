@@ -17,9 +17,11 @@
 
 package org.opensilk.music.plugin.drive;
 
-import android.content.Intent;
+import android.content.ComponentName;
 import android.os.Bundle;
 import android.os.RemoteException;
+import android.support.annotation.NonNull;
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.google.android.gms.auth.GoogleAuthException;
@@ -27,9 +29,10 @@ import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
 import com.google.api.services.drive.model.FileList;
 
-import org.opensilk.music.api.OrpheusApi.Error;
+import org.opensilk.music.api.PluginConfig;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.exception.ParcelableException;
 import org.opensilk.music.api.model.Folder;
 import org.opensilk.music.api.model.Song;
 import org.opensilk.music.plugin.common.LibraryPreferences;
@@ -54,8 +57,9 @@ import rx.schedulers.Schedulers;
 import timber.log.Timber;
 
 import static android.os.AsyncTask.THREAD_POOL_EXECUTOR;
-import static org.opensilk.music.api.OrpheusApi.Ability.*;
 
+import static org.opensilk.music.api.exception.ParcelableException.NETWORK;
+import static org.opensilk.music.api.exception.ParcelableException.AUTH_FAILURE;
 
 /**
  * Created by drew on 6/13/14.
@@ -95,18 +99,14 @@ public class DriveLibraryService extends RemoteLibraryService {
      */
 
     @Override
-    protected int getCapabilities() {
-        return SEARCH|SETTINGS;
-    }
-
-    @Override
-    protected Intent getLibraryChooserIntent() {
-        return new Intent(this, LibraryChooserActivity.class);
-    }
-
-    @Override
-    protected Intent getSettingsIntent() {
-        return new Intent(this, SettingsActivity.class);
+    protected PluginConfig getConfig() {
+        return new PluginConfig.Builder()
+                .addAbility(PluginConfig.SEARCHABLE)
+                .setPickerComponent(new ComponentName(this, LibraryChooserActivity.class),
+                        getResources().getString(R.string.menu_change_source))
+                .setSettingsComponent(new ComponentName(this, SettingsActivity.class),
+                        getResources().getString(R.string.menu_library_settings))
+                .build();
     }
 
     @Override
@@ -157,6 +157,55 @@ public class DriveLibraryService extends RemoteLibraryService {
         final FileSubscriber subscriber = new FileSubscriber(session, maxResults, false, q, callback);
         activeSubscribers.add(subscriber);
         getFiles(session, q).subscribeOn(Schedulers.io()).subscribe(subscriber);
+    }
+
+    static Bundle dematerializeFile(File f, String authToken) {
+        final String mime = f.getMimeType();
+        if (TextUtils.equals(FOLDER_MIMETYPE, mime)) {
+            return Helpers.buildFolder(f).toBundle();
+        } else if (mime.contains("audio") || TextUtils.equals(mime, "application/ogg")) {
+            return Helpers.buildSong(f, authToken).toBundle();
+        } else {
+            throw new IllegalArgumentException("File is wrong type: " + mime);
+        }
+    }
+
+    Observable<Bundle> doBrowse(final DriveHelper.Session session, final String q) {
+        return Observable.create(new Observable.OnSubscribe<Bundle>() {
+            @Override
+            public void call(Subscriber<? super Bundle> subscriber) {
+                try {
+                    Timber.d("q=" + q);
+                    final String authToken = session.getCredential().getToken();
+                    String pageToken = null;
+                    do {
+                        Drive.Files.List req = session.getDrive().files().list()
+                                .setQ(q)
+                                .setFields(Helpers.FIELDS)
+                                .setMaxResults(500); //More the better
+                        if (!TextUtils.isEmpty(pageToken)) req.setPageToken(pageToken);
+                        FileList resp = req.execute();
+                        List<File> files = resp.getItems();
+                        for (File f : files) {
+                            if (subscriber.isUnsubscribed()) return;
+                            subscriber.onNext(dematerializeFile(f, authToken));
+                        }
+                        pageToken = resp.getNextPageToken();
+                    } while (!TextUtils.isEmpty(pageToken));
+                    if (!subscriber.isUnsubscribed())
+                        subscriber.onCompleted();
+                } catch (IOException e) {
+                    if (!subscriber.isUnsubscribed())
+                        subscriber.onError(new ParcelableException(NETWORK, e));
+                } catch (GoogleAuthException e) {
+                    if (!subscriber.isUnsubscribed())
+                        subscriber.onError(new ParcelableException(AUTH_FAILURE, e));
+                } catch (Exception e) {
+                    if (!subscriber.isUnsubscribed())
+                        subscriber.onError(e);
+                }
+            }
+        });
     }
 
     String getFolder(String libraryIdentity, String folderIdentity) {
@@ -341,7 +390,7 @@ public class DriveLibraryService extends RemoteLibraryService {
             synchronized (callbacks) {
                 for (Result callback : callbacks) {
                     try {
-                        callback.success(bundlesResult, token);
+                        callback.onNext(bundlesResult, token);
                     } catch (RemoteException ignored) {}
                 }
             }
@@ -357,15 +406,15 @@ public class DriveLibraryService extends RemoteLibraryService {
                 for (Result callback : callbacks) {
                     if (e instanceof GoogleAuthException) {
                         try {
-                            callback.failure(Error.AUTH_FAILURE, "" + e.getMessage());
+                            callback.onError(new ParcelableException(AUTH_FAILURE,e));
                         } catch (RemoteException ignored) { }
                     } else if (e instanceof IOException) {
                         try {
-                            callback.failure(Error.NETWORK, "" + e.getMessage());
+                            callback.onError(new ParcelableException(NETWORK,e));
                         } catch (RemoteException ignored) { }
                     } else {
                         try {
-                            callback.failure(Error.UNKNOWN, "" + e.getMessage());
+                            callback.onError(new ParcelableException(e));
                         } catch (RemoteException ignored) { }
                     }
                 }
@@ -479,21 +528,21 @@ public class DriveLibraryService extends RemoteLibraryService {
                     b = null;
                 }
                 try {
-                    callback.success(resources, b);
+                    callback.onNext(resources, b);
                 } catch (RemoteException e) {
                     e.printStackTrace();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
                 try {
-                    callback.failure(Error.NETWORK, ""+e.getMessage());
+                    callback.onError(new ParcelableException(NETWORK,e));
                 } catch (RemoteException e1) {
                     e1.printStackTrace();
                 }
             } catch (GoogleAuthException e) {
                 e.printStackTrace();
                 try {
-                    callback.failure(Error.AUTH_FAILURE, "" + e.getMessage());
+                    callback.onError(new ParcelableException(AUTH_FAILURE,e));
                 } catch (RemoteException e1) {
                     e1.printStackTrace();
                 }
@@ -539,14 +588,14 @@ public class DriveLibraryService extends RemoteLibraryService {
                         b = null;
                     }
                     try {
-                        callback.success(songs, b);
+                        callback.onNext(songs, b);
                     } catch (RemoteException e) {
                         e.printStackTrace();
                     }
                 } catch (IOException|GoogleAuthException e) {
                     e.printStackTrace();
                     try {
-                        callback.failure(-1, "" + e.getMessage());
+                        callback.onError(new ParcelableException(e));
                     } catch (RemoteException e1) {
                         e1.printStackTrace();
                     }

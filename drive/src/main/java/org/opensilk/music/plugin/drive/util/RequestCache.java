@@ -72,7 +72,7 @@ public class RequestCache {
                     token = null;
                 }
                 try {
-                    callback.success(results, token);
+                    callback.onNext(results, token);
                 } catch (RemoteException ignored) {}
                 return true;
             }

@@ -23,8 +23,10 @@ import android.os.RemoteException;
 import android.widget.ArrayAdapter;
 
 import org.opensilk.music.api.OrpheusApi;
+import org.opensilk.music.api.PluginConfig;
 import org.opensilk.music.api.RemoteLibrary;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.exception.ParcelableException;
 import org.opensilk.music.api.meta.LibraryInfo;
 import org.opensilk.music.api.model.spi.Bundleable;
 
@@ -57,16 +59,13 @@ public class LibraryArrayAdapter extends ArrayAdapter<Bundleable> {
 
     public void loadMore() {
         try {
-            final int apiVersion = mLibrary.getApiVersion();
-            if (apiVersion >= OrpheusApi.API_010) {
-                ResultCallback result = new ResultCallback();
-                mLibrary.browseFolders(mLibraryInfo.libraryId, mLibraryInfo.folderId,
-                        STEP, mPaginationBundle, result);
-                while (!result.isComplete()) {
-                    try {
-                        result.waitForResult();
-                    } catch (InterruptedException ignored) {}
-                }
+            ResultCallback result = new ResultCallback();
+            mLibrary.browseFolders(mLibraryInfo.libraryId, mLibraryInfo.folderId,
+                    STEP, mPaginationBundle, result);
+            while (!result.isComplete()) {
+                try {
+                    result.waitForResult();
+                } catch (InterruptedException ignored) {}
             }
         } catch (RemoteException ex) {
             mPendingItems.clear();
@@ -100,7 +99,7 @@ public class LibraryArrayAdapter extends ArrayAdapter<Bundleable> {
         }
 
         @Override
-        public synchronized void success(final List<Bundle> items, final Bundle paginationBundle) throws RemoteException {
+        public synchronized void onNext(final List<Bundle> items, final Bundle paginationBundle) throws RemoteException {
             if (paginationBundle == null) {
                 mEndOfResults.set(true);
             }
@@ -108,7 +107,7 @@ public class LibraryArrayAdapter extends ArrayAdapter<Bundleable> {
             if (!items.isEmpty()) {
                 for (Bundle b : items) {
                     try {
-                        mPendingItems.add(OrpheusApi.transformBundle(b));
+                        mPendingItems.add(OrpheusApi.materializeBundle(b));
                     } catch (Exception ignored) {}
                 }
             }
@@ -117,7 +116,7 @@ public class LibraryArrayAdapter extends ArrayAdapter<Bundleable> {
         }
 
         @Override
-        public synchronized void failure(int code, String reason) throws RemoteException {
+        public synchronized void onError(ParcelableException e) throws RemoteException {
             mPendingItems.clear();
             done = true;
             notifyAll();
