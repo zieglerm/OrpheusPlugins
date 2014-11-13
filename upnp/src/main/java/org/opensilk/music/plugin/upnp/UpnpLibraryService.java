@@ -44,9 +44,10 @@ import org.fourthline.cling.support.model.item.AudioItem;
 import org.fourthline.cling.support.model.item.Item;
 import org.fourthline.cling.support.model.item.MusicTrack;
 import org.opensilk.common.dagger.DaggerInjector;
-import org.opensilk.music.api.OrpheusApi.Error;
+import org.opensilk.music.api.PluginConfig;
 import org.opensilk.music.api.RemoteLibraryService;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.exception.ParcelableException;
 import org.opensilk.music.api.model.Album;
 import org.opensilk.music.api.model.Artist;
 import org.opensilk.music.api.model.Folder;
@@ -66,8 +67,8 @@ import javax.inject.Inject;
 
 import hugo.weaving.DebugLog;
 
-import static org.opensilk.music.api.OrpheusApi.Ability.SEARCH;
-import static org.opensilk.music.api.OrpheusApi.Ability.SETTINGS;
+import static org.opensilk.music.api.exception.ParcelableException.NETWORK;
+import static org.opensilk.music.api.exception.ParcelableException.RETRY;
 
 /**
  * Created by drew on 6/8/14.
@@ -76,7 +77,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     public static final String DEFAULT_ROOT_FOLDER = "0";
 
-    private AndroidUpnpService mUpnpService;
+    private volatile AndroidUpnpService mUpnpService;
 
     @Inject LibraryPreferences mLibraryPrefs;
 
@@ -98,18 +99,14 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
      */
 
     @Override
-    protected int getCapabilities() {
-        return SEARCH|SETTINGS;
-    }
-
-    @Override
-    protected Intent getLibraryChooserIntent() {
-        return new Intent(this, LibraryPickerActivity.class);
-    }
-
-    @Override
-    protected Intent getSettingsIntent() {
-        return new Intent(this, SettingsActivity.class);
+    protected PluginConfig getConfig() {
+        return new PluginConfig.Builder()
+                .addAbility(PluginConfig.SEARCHABLE)
+                .setPickerComponent(new ComponentName(this, LibraryPickerActivity.class),
+                        getResources().getString(R.string.menu_change_source))
+                .setSettingsComponent(new ComponentName(this, SettingsActivity.class),
+                        getResources().getString(R.string.menu_library_settings))
+                .build();
     }
 
     @Override
@@ -153,7 +150,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             }
         }
         try {
-            callback.failure(Error.RETRY, "Upnp Service not bound yet");
+            callback.onError(new ParcelableException(RETRY, new Exception("Upnp Service not bound yet")));
         } catch (RemoteException ignored) {}
     }
 
@@ -167,7 +164,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             }
         }
         try {
-            callback.failure(Error.RETRY, "Upnp Service not bound yet");
+            callback.onError(new ParcelableException(RETRY, new Exception("Upnp Service not bound yet")));
         } catch (RemoteException ignored) {}
     }
 
@@ -188,7 +185,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             }
         }
         try {
-            callback.failure(Error.RETRY, "Upnp Service not bound yet");
+            callback.onError(new ParcelableException(RETRY, new Exception("Upnp Service not bound yet")));
         } catch (RemoteException ignored) {}
     }
 
@@ -244,12 +241,7 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
 
     @DebugLog
     private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback, final boolean songsOnly) {
-        final int start;
-        if (paginationBundle != null) {
-            start = paginationBundle.getInt("start");
-        } else {
-            start = 0;
-        }
+        final int start = paginationBundle != null ? paginationBundle.getInt("start") : 0;
         final Browse browse = new Browse(rs, folderIdentity, BrowseFlag.DIRECT_CHILDREN, Browse.CAPS_WILDCARD, start, (long)maxResults) {
             @Override
             @DebugLog
@@ -322,10 +314,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 }
 
                 try {
-                    callback.success(resources, b);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
+                    callback.onNext(resources, b);
+                } catch (RemoteException ignored) { }
             }
 
             @Override
@@ -337,10 +327,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             @DebugLog
             public void failure(ActionInvocation actionInvocation, UpnpResponse upnpResponse, String s) {
                 try {
-                    callback.failure(Error.NETWORK, s);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
+                    callback.onError(new ParcelableException(NETWORK, new Exception(s)));
+                } catch (RemoteException ignored) { }
             }
         };
         if (mUpnpService != null) {
@@ -349,13 +337,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     }
 
     private void doSearch(RemoteService rs, String folderIdentity, String query, final int maxResults, Bundle paginationBundle, final Result callback) {
-        final int start;
-        if (paginationBundle != null) {
-            start = paginationBundle.getInt("start");
-        } else {
-            start = 0;
-        }
-        Search search = new Search(rs, folderIdentity,
+        final int start = paginationBundle != null ? paginationBundle.getInt("start") : 0;
+        final Search search = new Search(rs, folderIdentity,
                 "dc:title contains \"" + query + "\" or upnp:artist contains \""
                         + query + "\" or upnp:album contains \"" + query + "\""
                         + " or upnp:genre contains \"" + query + "\"",
@@ -427,10 +410,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 }
 
                 try {
-                    callback.success(resources, b);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
+                    callback.onNext(resources, b);
+                } catch (RemoteException ignored) { }
             }
 
             @Override
@@ -441,10 +422,8 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
             @Override
             public void failure(ActionInvocation invocation, UpnpResponse operation, String s) {
                 try {
-                    callback.failure(Error.NETWORK, s);
-                } catch (RemoteException e) {
-                    e.printStackTrace();
-                }
+                    callback.onError(new ParcelableException(NETWORK, new Exception(s)));
+                } catch (RemoteException ignored) { }
             }
         };
         if (mUpnpService != null) {

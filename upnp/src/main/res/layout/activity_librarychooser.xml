@@ -20,66 +20,27 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="wrap_content"
+    android:minHeight="128dp">
 
-    <TextView
-        android:text="@string/select_device"
-        android:textAppearance="?android:textAppearanceLarge"
-        android:textColor="@android:color/holo_blue_light"
-        android:paddingLeft="16dp"
-        android:minHeight="64dp"
-        android:gravity="center_vertical|start"
+    <ListView
+        android:id="@android:id/list"
         android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+
+    <!--<TextView-->
+    <!--android:id="@android:id/empty"-->
+    <!--android:text="No devices found"-->
+    <!--android:layout_width="wrap_content"-->
+    <!--android:layout_height="wrap_content"-->
+    <!--android:layout_gravity="center"/>-->
+
+    <ProgressBar
+        android:id="@android:id/empty"
+        android:layout_gravity="center"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        style="?android:windowTitleStyle"/>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="@android:color/holo_blue_light"/>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:minHeight="128dp"
-        android:orientation="vertical">
-
-        <ListView
-            android:id="@android:id/list"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
-
-        <!--<TextView-->
-            <!--android:id="@android:id/empty"-->
-            <!--android:text="No devices found"-->
-            <!--android:layout_width="wrap_content"-->
-            <!--android:layout_height="wrap_content"-->
-            <!--android:layout_gravity="center"/>-->
-
-        <ProgressBar
-            android:id="@android:id/empty"
-            android:layout_gravity="center"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:visibility="gone"
-            style="?android:progressBarStyle"/>
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        style="?android:buttonBarStyle">
-
-        <Button
-            android:id="@+id/cancel_btn"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:text="@android:string/cancel"
-            style="?android:buttonBarButtonStyle"/>
-
-    </LinearLayout>
+        android:visibility="gone"
+        style="?android:progressBarStyle"/>
 
 </LinearLayout>

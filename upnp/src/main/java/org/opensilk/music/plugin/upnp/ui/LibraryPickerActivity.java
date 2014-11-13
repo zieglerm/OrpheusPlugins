@@ -17,14 +17,21 @@
 
 package org.opensilk.music.plugin.upnp.ui;
 
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
 import android.app.ListActivity;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
@@ -40,15 +47,19 @@ import org.opensilk.music.plugin.upnp.R;
 import org.opensilk.music.plugin.upnp.UpnpServiceService;
 
 import butterknife.ButterKnife;
+import butterknife.InjectView;
 import butterknife.OnClick;
 
 /**
  * Created by drew on 6/14/14.
  */
-public class LibraryPickerActivity extends ListActivity implements ServiceConnection {
+public class LibraryPickerActivity extends Activity implements ServiceConnection {
 
     AndroidUpnpService upnpService;
     ArrayAdapter<DeviceHolder> listAdapter;
+    AlertDialog dialog;
+    @InjectView(android.R.id.list) ListView listView;
+    @InjectView(android.R.id.empty) View emptyView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,19 +67,46 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
 
         boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
         if (wantLightTheme) {
-            setTheme(R.style.AppThemeDialogLight);
+            setTheme(R.style.AppThemeTranslucentLight);
         } else {
-            setTheme(R.style.AppThemeDialogDark);
+            setTheme(R.style.AppThemeTranslucentDark);
         }
-
-        setContentView(R.layout.activity_librarychooser);
-        ButterKnife.inject(this);
-
-        listAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1);
 
         bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
 
-        setResult(RESULT_CANCELED, getIntent());
+        setResult(RESULT_CANCELED, new Intent());
+
+        listAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1);
+
+        View view = LayoutInflater.from(this).inflate(R.layout.activity_librarychooser, null);
+        ButterKnife.inject(this, view);
+
+        listView.setEmptyView(emptyView);
+        listView.setDividerHeight(0);
+        listView.setAdapter(listAdapter);
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                onListItemClick((ListView)parent, view, position, id);
+            }
+        });
+
+        dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.select_device)
+                .setView(view)
+                .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        onCanceled();
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        onCanceled();
+                    }
+                })
+                .show();
     }
 
     @Override
@@ -80,8 +118,10 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
         unbindService(this);
     }
 
-    @Override
+    //@Override
     protected void onListItemClick(ListView l, View v, int position, long id) {
+        dialog.dismiss();
+
         final DeviceHolder holder = listAdapter.getItem(position);
         LibraryInfo libraryInfo = new LibraryInfo(holder.id, holder.label, null, null);
         Intent i = new Intent()
@@ -91,7 +131,7 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
         finish();
     }
 
-    @OnClick({R.id.cancel_btn})
+
     void onCanceled() {
         finish();
     }
@@ -107,14 +147,13 @@ public class LibraryPickerActivity extends ListActivity implements ServiceConnec
         for (RemoteDevice d : upnpService.getRegistry().getRemoteDevices()) {
             listAdapter.add(DeviceHolder.fromRemoteDevice(d));
         }
-        setListAdapter(listAdapter);
         upnpService.getRegistry().addListener(registryListener);
     }
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
         upnpService = null;
-        setListAdapter(null);
+        listAdapter.clear();
     }
 
     /**
