@@ -22,7 +22,7 @@
 
         <activity android:name=".ui.StorageLocationPicker"
                   android:exported="true"
-                  android:theme="@style/AppThemeTranslucentDark"/>
+                  android:theme="@style/FoldersThemeTranslucentDark"/>
 
         <service android:name=".FolderLibraryService"
                  android:icon="@drawable/ic_folder_grey600_24dp"

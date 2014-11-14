@@ -41,24 +41,25 @@ public class StorageLocationPicker extends Activity {
 
         boolean wantLightTheme = getIntent().getBooleanExtra(OrpheusApi.EXTRA_WANT_LIGHT_THEME, false);
         if (wantLightTheme) {
-            setTheme(R.style.AppThemeTranslucentLight);
+            setTheme(R.style.FoldersThemeTranslucentLight);
         } else {
-            setTheme(R.style.AppThemeTranslucentDark);
+            setTheme(R.style.FoldersThemeTranslucentDark);
         }
 
         setResult(RESULT_CANCELED, new Intent());
 
         final String[] storageLocations;
-        if (FileUtil.SECONDARY_STORAGE_DIR != null) {
-            storageLocations = new String[] {
-                    getString(R.string.folders_storage_primary),
-                    getString(R.string.folders_storage_secondary)
-            };
-        } else {
+        //TODO find someone who can test this
+//        if (FileUtil.SECONDARY_STORAGE_DIR != null) {
+//            storageLocations = new String[] {
+//                    getString(R.string.folders_storage_primary),
+//                    getString(R.string.folders_storage_secondary)
+//            };
+//        } else {
             storageLocations = new String[] {
                     getString(R.string.folders_storage_primary)
             };
-        }
+//        }
 
         dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.folders_picker_title)

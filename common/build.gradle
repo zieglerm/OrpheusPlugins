@@ -42,6 +42,11 @@ android {
     }
 }
 
+// for uploadArchives
+group "org.opensilk.music.plugin"
+version android.defaultConfig.versionName
+apply from: '../../maven_local.gradle'
+
 dependencies {
     compile project(':../Orpheus:api')
     compile 'com.commonsware.cwac:endless:1.2.3'

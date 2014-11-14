@@ -141,6 +141,12 @@ public class FileUtil {
         return sDateFormat.format(new Date(ms));
     }
 
+    /*
+     * Android external storage paths have changed at least a dozen times since
+     * ive been watching so we use relative paths for ids so we don't get screwed
+     * up when it changes again
+     */
+    @NonNull
     public static String toRelativePath(File base, File f) {
         return f.getAbsolutePath().replace(base.getAbsolutePath(), "");
     }
@@ -157,18 +163,6 @@ public class FileUtil {
 
     @NonNull
     public static Song makeSong(Context context, File base, File f) {
-        Song song = makeSongMediaStore(context, base, f);
-        if (song != null) return song;
-        return new Song.Builder()
-                .setIdentity(toRelativePath(base, f))
-                .setName(f.getName())
-                .setMimeType(guessMimeType(f))
-                .setDataUri(Uri.fromFile(f))
-                .build();
-    }
-
-    @Nullable
-    public static Song makeSongMediaStore(Context context, File base, File f) {
         Cursor c = null;
         try {
             c = context.getContentResolver().query(
@@ -192,7 +186,12 @@ public class FileUtil {
                             c.getLong(c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))))
                     .build();
         } catch (Exception e) {
-            return null;
+            return new Song.Builder()
+                    .setIdentity(toRelativePath(base, f))
+                    .setName(f.getName())
+                    .setMimeType(guessMimeType(f))
+                    .setDataUri(Uri.fromFile(f))
+                    .build();
         } finally {
             if (c != null) c.close();
         }
