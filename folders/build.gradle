@@ -67,12 +67,13 @@ dependencies {
     //compile fileTree(dir: 'libs', include: ['*.jar'])
     //compile 'commons-io:commons-io:2.4'
 
-    //For Standalone
-    //compile project(':common')
-
-    //When included in Orpheus
-    compile project(':api')
+    //For Standalone, must also uncomment folders in settings.gradle
+//    compile project(':common')
+    // for library
+    compile project(':../Orpheus:api')
     compile 'io.reactivex:rxandroid:0.22.0'
+    //When included in Orpheus
+//    compile project(':api')
 
     androidTestCompile('junit:junit:4.11')
     androidTestCompile('org.robolectric:robolectric:2.3') {
