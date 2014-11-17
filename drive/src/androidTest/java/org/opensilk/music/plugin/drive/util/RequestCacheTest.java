@@ -24,6 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.opensilk.music.api.callback.Result;
+import org.opensilk.music.api.exception.ParcelableException;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
@@ -43,13 +44,13 @@ public class RequestCacheTest {
         List<Bundle> list;
         Bundle token;
         @Override
-        public void success(List<Bundle> items, Bundle paginationBundle) throws RemoteException {
+        public void onNext(List<Bundle> items, Bundle paginationBundle) throws RemoteException {
             list = items;
             token = paginationBundle;
         }
 
         @Override
-        public void failure(int code, String reason) throws RemoteException {
+        public void onError(ParcelableException e) throws RemoteException {
 
         }
     }
