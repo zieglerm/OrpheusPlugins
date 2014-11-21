@@ -46,6 +46,7 @@ import java.util.Locale;
  */
 public class FileUtil {
 
+    //Library identities
     public static final String PRIMARY_STORAGE_ID = "0";
     public static final String SECONDARY_STORAGE_ID = "1";
 
@@ -54,7 +55,12 @@ public class FileUtil {
 
     public static final Uri BASE_ARTWORK_URI;
     public static final String[] SONG_PROJECTION;
+    public static final String[] SONG_ALBUM_PROJECTION;
     public static final String[] MEDIA_TYPE_PROJECTION;
+
+    public static final String SONG_SELECTION;
+    public static final String SONG_ALBUM_SELECTION;
+    public static final String MEDIA_TYPE_SELECTION;
 
     private static final DateFormat sDateFormat;
 
@@ -71,9 +77,15 @@ public class FileUtil {
                 MediaStore.Audio.AudioColumns.DURATION,
                 MediaStore.Audio.AudioColumns.MIME_TYPE,
         };
+        SONG_ALBUM_PROJECTION = new String[] {
+                MediaStore.Audio.AlbumColumns.ARTIST
+        };
         MEDIA_TYPE_PROJECTION = new String[] {
                 MediaStore.Files.FileColumns.MEDIA_TYPE
         };
+        SONG_SELECTION = MediaStore.Audio.AudioColumns.DATA+"=?";
+        SONG_ALBUM_SELECTION = BaseColumns._ID+"=?";
+        MEDIA_TYPE_SELECTION = MediaStore.Files.FileColumns.DATA+"=?";
         sDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
     }
 
@@ -100,9 +112,9 @@ public class FileUtil {
             Object o2 = m.invoke(o);
             return (File[]) o2;
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
+            return new File[0];
         }
-        return new File[0];
     }
 
     public static String getFileExtension(String name) {
@@ -150,7 +162,8 @@ public class FileUtil {
      */
     @NonNull
     public static String toRelativePath(File base, File f) {
-        return f.getAbsolutePath().replace(base.getAbsolutePath(), "");
+        String p = f.getAbsolutePath().replace(base.getAbsolutePath(), "");
+        return !p.startsWith("/") ? p : p.substring(1);
     }
 
     @NonNull
@@ -166,26 +179,37 @@ public class FileUtil {
     @NonNull
     public static Song makeSong(Context context, File base, File f) {
         Cursor c = null;
+        Cursor c2 = null;
         try {
             c = context.getContentResolver().query(
                     MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                     SONG_PROJECTION,
-                    MediaStore.Audio.AudioColumns.DATA+"=?",
+                    SONG_SELECTION,
                     new String[]{f.getAbsolutePath()},
-                    null);
+                    null
+            );
             c.moveToFirst();
+            c2 = context.getContentResolver().query(
+                    MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
+                    SONG_ALBUM_PROJECTION,
+                    SONG_SELECTION,
+                    new String[]{c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))},
+                    null
+            );
+            c2.moveToFirst();
             return new Song.Builder()
                     .setIdentity(toRelativePath(base, f))
                     .setName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.TITLE)))
                     .setArtistName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ARTIST)))
                     .setAlbumName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ALBUM)))
                     .setAlbumIdentity(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ALBUM_ID)))
-                    .setDuration(c.getInt(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.DURATION)))
+                    .setDuration(c.getInt(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.DURATION))/1000)
                     .setMimeType(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.MIME_TYPE)))
                     .setDataUri(ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                             c.getLong(c.getColumnIndexOrThrow(BaseColumns._ID))))
                     .setArtworkUri(ContentUris.withAppendedId(BASE_ARTWORK_URI,
                             c.getLong(c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))))
+                    .setAlbumArtistName(c2.getString(c2.getColumnIndexOrThrow(MediaStore.Audio.AlbumColumns.ARTIST)))
                     .build();
         } catch (Exception e) {
             return new Song.Builder()
@@ -195,7 +219,8 @@ public class FileUtil {
                     .setDataUri(Uri.fromFile(f))
                     .build();
         } finally {
-            if (c != null) c.close();
+            closeQuietly(c);
+            closeQuietly(c2);
         }
     }
 
@@ -205,7 +230,7 @@ public class FileUtil {
             c = context.getContentResolver().query(
                     MediaStore.Files.getContentUri("external"),
                     MEDIA_TYPE_PROJECTION,
-                    MediaStore.Files.FileColumns.DATA+"=?",
+                    MEDIA_TYPE_SELECTION,
                     new String[]{f.getAbsolutePath()},
                     null);
             c.moveToFirst();
@@ -215,8 +240,14 @@ public class FileUtil {
             String mime = guessMimeType(f);
             return mime.contains("audio") || mime.equals("application/ogg");
         } finally {
-            if (c != null) c.close();
+            closeQuietly(c);
         }
+    }
+
+    static void closeQuietly(Cursor c) {
+        try {
+            if (c != null) c.close();
+        } catch (Exception ignored) { }
     }
 
 }
