@@ -62,7 +62,7 @@ public class StorageLocationPicker extends Activity {
 
         dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.folders_picker_title)
-                .setSingleChoiceItems(storageLocations, 0, new DialogInterface.OnClickListener() {
+                .setItems(storageLocations, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         LibraryInfo libraryInfo = new LibraryInfo(String.valueOf(which), storageLocations[which], null, null);
