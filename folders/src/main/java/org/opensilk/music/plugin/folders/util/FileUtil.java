@@ -45,6 +45,7 @@ import java.util.Locale;
  * Created by drew on 11/13/14.
  */
 public class FileUtil {
+    private static final boolean DUMPSTACKS = false;
 
     //Library identities
     public static final String PRIMARY_STORAGE_ID = "0";
@@ -70,7 +71,7 @@ public class FileUtil {
         BASE_ARTWORK_URI = Uri.parse("content://media/external/audio/albumart");
         SONG_PROJECTION = new String[] {
                 BaseColumns._ID,
-                MediaStore.Audio.AudioColumns.TITLE,
+                MediaStore.Audio.AudioColumns.DISPLAY_NAME, //Better sorting than TITLE
                 MediaStore.Audio.AudioColumns.ARTIST,
                 MediaStore.Audio.AudioColumns.ALBUM,
                 MediaStore.Audio.AudioColumns.ALBUM_ID,
@@ -112,7 +113,7 @@ public class FileUtil {
             Object o2 = m.invoke(o);
             return (File[]) o2;
         } catch (Exception e) {
-            //e.printStackTrace();
+            if (DUMPSTACKS) e.printStackTrace();
             return new File[0];
         }
     }
@@ -192,18 +193,18 @@ public class FileUtil {
             c2 = context.getContentResolver().query(
                     MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI,
                     SONG_ALBUM_PROJECTION,
-                    SONG_SELECTION,
+                    SONG_ALBUM_SELECTION,
                     new String[]{c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID))},
                     null
             );
             c2.moveToFirst();
             return new Song.Builder()
                     .setIdentity(toRelativePath(base, f))
-                    .setName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.TITLE)))
+                    .setName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.DISPLAY_NAME)))
                     .setArtistName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ARTIST)))
                     .setAlbumName(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ALBUM)))
                     .setAlbumIdentity(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ALBUM_ID)))
-                    .setDuration(c.getInt(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.DURATION))/1000)
+                    .setDuration(c.getInt(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.DURATION)) / 1000)
                     .setMimeType(c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.MIME_TYPE)))
                     .setDataUri(ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                             c.getLong(c.getColumnIndexOrThrow(BaseColumns._ID))))
@@ -212,6 +213,7 @@ public class FileUtil {
                     .setAlbumArtistName(c2.getString(c2.getColumnIndexOrThrow(MediaStore.Audio.AlbumColumns.ARTIST)))
                     .build();
         } catch (Exception e) {
+            if (DUMPSTACKS) e.printStackTrace();
             return new Song.Builder()
                     .setIdentity(toRelativePath(base, f))
                     .setName(f.getName())
@@ -237,6 +239,7 @@ public class FileUtil {
             int mediaType = c.getInt(0);
             return mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO;
         } catch (Exception e) {
+            if (DUMPSTACKS) e.printStackTrace();
             String mime = guessMimeType(f);
             return mime.contains("audio") || mime.equals("application/ogg");
         } finally {
