@@ -49,17 +49,16 @@ public class StorageLocationPicker extends Activity {
         setResult(RESULT_CANCELED, new Intent());
 
         final String[] storageLocations;
-        //TODO find someone who can test this
-//        if (FileUtil.SECONDARY_STORAGE_DIR != null) {
-//            storageLocations = new String[] {
-//                    getString(R.string.folders_storage_primary),
-//                    getString(R.string.folders_storage_secondary)
-//            };
-//        } else {
+        if (FileUtil.SECONDARY_STORAGE_DIR != null) {
+            storageLocations = new String[] {
+                    getString(R.string.folders_storage_primary),
+                    getString(R.string.folders_storage_secondary)
+            };
+        } else {
             storageLocations = new String[] {
                     getString(R.string.folders_storage_primary)
             };
-//        }
+        }
 
         dialog = new AlertDialog.Builder(this)
                 .setTitle(R.string.folders_picker_title)

@@ -27,6 +27,7 @@ import android.provider.BaseColumns;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import org.opensilk.music.api.model.Folder;
@@ -80,6 +81,7 @@ public class FileUtil {
     static File getSecondaryStorageDir() {
         File[] files = checkSecondaryStorage();
         if (files.length >= 2) {
+            Log.i("Folders", "getSecondaryStorageDir() <- " + files[1]);
             return files[1];
         }
         return null;
