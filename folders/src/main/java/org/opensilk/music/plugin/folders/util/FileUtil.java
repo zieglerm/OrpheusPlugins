@@ -93,7 +93,7 @@ public class FileUtil {
     @Nullable
     static File getSecondaryStorageDir() {
         File[] files = checkSecondaryStorage();
-        if (files.length >= 2) {
+        if (files.length >= 2 && files[1].canRead()) {
             Log.i("Folders", "getSecondaryStorageDir() <- " + files[1]);
             return files[1];
         }

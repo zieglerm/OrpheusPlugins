@@ -133,13 +133,15 @@ public class FolderLibraryService extends RemoteLibraryService {
     List<Bundle> doListing(String libraryIdentity, String folderIdentity, boolean songsOnly) {
         final File base = SECONDARY_STORAGE_ID.equals(libraryIdentity) ? SECONDARY_STORAGE_DIR : PRIMARY_STORAGE_DIR;
         final File rootDir = TextUtils.isEmpty(folderIdentity) ? base : new File(base, folderIdentity);
-        if (!rootDir.exists() || !rootDir.isDirectory()) {
+        if (!rootDir.exists() || !rootDir.isDirectory() || !rootDir.canRead()) {
             return Collections.emptyList();
         }
         File[] dirList = rootDir.listFiles();
         List<Folder> folders = new ArrayList<>(dirList.length);
         List<Song> songs = new ArrayList<>(dirList.length);
         for (File f : dirList) {
+            if (!f.canRead()) continue;
+            if (f.getName().startsWith(".")) continue;
             if (!songsOnly && f.isDirectory()) {
                 folders.add(makeFolder(base, f));
             }
