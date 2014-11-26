@@ -54,7 +54,7 @@ public class FileUtilTest {
     public void testtoRelativePath() {
         File base = new File("/data/media/0");
         File file = new File("/data/media/0/Music/somefile.mp3");
-        assertThat(toRelativePath(base, file)).isEqualTo("/Music/somefile.mp3");
+        assertThat(toRelativePath(base, file)).isEqualTo("Music/somefile.mp3");
         //make sure it reassembles to the same file
         assertThat(file).isEqualTo(new File(base, toRelativePath(base, file)));
     }
