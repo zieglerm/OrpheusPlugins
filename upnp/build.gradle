@@ -69,13 +69,9 @@ android {
         debug {
             applicationIdSuffix ".debug"
             versionNameSuffix rootProject.getDebugVersionSuffix()
-            runProguard false//true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.debug
         }
         release {
-            runProguard false//true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
         }
     }
