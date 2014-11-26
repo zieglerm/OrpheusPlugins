@@ -38,6 +38,10 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+
+import hugo.weaving.DebugLog;
 
 /**
  * Created by drew on 6/18/14.
@@ -140,20 +144,21 @@ public class Helpers {
     }
 
     public static int parseDuration(String dur) {
-        if (TextUtils.isEmpty(dur)) {
+        if (TextUtils.isEmpty(dur)) return 0;
+        String[] strings = dur.split(":");
+        if (strings.length != 3) return 0;
+        try {
+            int sec = 0;
+            if (!TextUtils.isEmpty(strings[0])) {
+                sec += TimeUnit.SECONDS.convert(Integer.decode(strings[0]), TimeUnit.HOURS);
+            }
+            sec += TimeUnit.SECONDS.convert(Integer.decode(strings[1]), TimeUnit.MINUTES);
+            sec += TimeUnit.SECONDS.convert(Integer.decode(strings[2].substring(0, 2)), TimeUnit.SECONDS);
+            return sec;
+        } catch (NumberFormatException e) {
             return 0;
         }
-        DateFormat df = new SimpleDateFormat("H:mm:ss", Locale.US);
-        Date d = null;
-        try {
-            d = df.parse(dur);
-            if (d != null) {
-                return (int) (d.getTime() / 1000);
-            }
-        } catch (ParseException e) {
-            e.printStackTrace();
-        }
-        return 0;
+
     }
 
 }
