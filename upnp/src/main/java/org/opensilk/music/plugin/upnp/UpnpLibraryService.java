@@ -23,6 +23,7 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
 import org.fourthline.cling.android.AndroidUpnpService;
@@ -66,32 +67,49 @@ import java.util.List;
 import javax.inject.Inject;
 
 import hugo.weaving.DebugLog;
+import rx.Observable;
+import rx.functions.Action1;
+import rx.subjects.AsyncSubject;
 
 import static org.opensilk.music.api.exception.ParcelableException.NETWORK;
 import static org.opensilk.music.api.exception.ParcelableException.RETRY;
+import static org.opensilk.music.api.exception.ParcelableException.UNKNOWN;
 
 /**
  * Created by drew on 6/8/14.
  */
-public class UpnpLibraryService extends RemoteLibraryService implements ServiceConnection {
+public class UpnpLibraryService extends RemoteLibraryService {
 
     public static final String DEFAULT_ROOT_FOLDER = "0";
 
-    private volatile AndroidUpnpService mUpnpService;
-
     @Inject LibraryPreferences mLibraryPrefs;
+
+    Token mUpnpServiceToken;
 
     @Override
     public void onCreate() {
         super.onCreate();
         ((DaggerInjector) getApplication()).getObjectGraph().inject(this);
-        bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
+        bindUpnpService();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        unbindService(this);
+        unbindUpnpService();
+    }
+
+    synchronized Observable<AndroidUpnpService> bindUpnpService() {
+        mUpnpServiceToken = new Token(AsyncSubject.<AndroidUpnpService>create());
+        bindService(new Intent(this, UpnpServiceService.class), mUpnpServiceToken, BIND_AUTO_CREATE);
+        return mUpnpServiceToken.subject.asObservable();
+    }
+
+    synchronized void unbindUpnpService() {
+        if (mUpnpServiceToken != null) {
+            unbindService(mUpnpServiceToken);
+            mUpnpServiceToken = null;
+        }
     }
 
     /*
@@ -110,109 +128,126 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     }
 
     @Override
-    protected void pause() {
-        if (mUpnpService != null) {
-            if (!mUpnpService.getRegistry().isPaused()) {
-                mUpnpService.getRegistry().pause();
-            }
+    protected synchronized void pause() {
+        if (mUpnpServiceToken != null) {
+            mUpnpServiceToken.subject.asObservable().subscribe(new Action1<AndroidUpnpService>() {
+                @Override
+                public void call(AndroidUpnpService androidUpnpService) {
+                    if (!androidUpnpService.getRegistry().isPaused()) {
+                        androidUpnpService.getRegistry().pause();
+                    }
+                }
+            });
         }
     }
 
     @Override
-    protected void resume() {
-        if (mUpnpService != null) {
-            if (mUpnpService.getRegistry().isPaused()) {
-                mUpnpService.getRegistry().resume();
-            }
+    protected synchronized void resume() {
+        if (mUpnpServiceToken != null) {
+            mUpnpServiceToken.subject.asObservable().subscribe(new Action1<AndroidUpnpService>() {
+                @Override
+                public void call(AndroidUpnpService androidUpnpService) {
+                    if (androidUpnpService.getRegistry().isPaused()) {
+                        androidUpnpService.getRegistry().resume();
+                    }
+                }
+            });
         }
     }
 
     @Override
     @DebugLog
-    protected void browseFolders(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) {
-        if (mUpnpService != null) {
-            RemoteService rs = acquireContentDirectoryService(libraryIdentity);
-            if (rs != null) {
-                // Requested root folder
-                if (TextUtils.isEmpty(folderIdentity)) {
-                    String rootFolder = mLibraryPrefs.getRootFolder(libraryIdentity);
-                    if (!TextUtils.isEmpty(rootFolder)) {
-                        // use preferred root folder
-                        doBrowse(rs, rootFolder, maxResults, paginationBundle, callback, false);
+    protected void browseFolders(@NonNull final String libraryIdentity,
+                                          final String folderIdentity,
+                                          final int maxResults,
+                                          final Bundle paginationBundle,
+                                 @NonNull final Result callback) {
+        bindUpnpService().subscribe(new Action1<AndroidUpnpService>() {
+            @Override
+            public void call(AndroidUpnpService upnpService) {
+                RemoteService rs = acquireContentDirectoryService(upnpService, libraryIdentity);
+                if (rs != null) {
+                    // Requested root folder
+                    if (TextUtils.isEmpty(folderIdentity)) {
+                        String rootFolder = mLibraryPrefs.getRootFolder(libraryIdentity);
+                        if (!TextUtils.isEmpty(rootFolder)) {
+                            // use preferred root folder
+                            doBrowse(upnpService, rs, rootFolder, maxResults, paginationBundle, callback, false);
+                        } else {
+                            // lets see if there is a music only virtual folder
+                            requestFeatures(upnpService, rs, new BrowseCommand(upnpService, rs, maxResults, paginationBundle, callback));
+                        }
                     } else {
-                        // lets see if there is a music only virtual folder
-                        requestFeatures(rs, new BrowseCommand(rs, maxResults, paginationBundle, callback));
+                        doBrowse(upnpService, rs, folderIdentity, maxResults, paginationBundle, callback, false);
                     }
                 } else {
-                    doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback, false);
+                    try {
+                        callback.onError(new ParcelableException(UNKNOWN,
+                                new NullPointerException("Unable to obtain service id=" + libraryIdentity)));
+                    } catch (RemoteException ignored) {}
                 }
-                return;
             }
-        }
-        try {
-            callback.onError(new ParcelableException(RETRY, new Exception("Upnp Service not bound yet")));
-        } catch (RemoteException ignored) {}
+        });
     }
 
     @Override
-    protected void listSongsInFolder(String libraryIdentity, String folderIdentity, int maxResults, Bundle paginationBundle, Result callback) {
-        if (mUpnpService != null) {
-            RemoteService rs = acquireContentDirectoryService(libraryIdentity);
-            if (rs != null) {
-                doBrowse(rs, folderIdentity, maxResults, paginationBundle, callback, true);
-                return;
-            }
-        }
-        try {
-            callback.onError(new ParcelableException(RETRY, new Exception("Upnp Service not bound yet")));
-        } catch (RemoteException ignored) {}
-    }
-
-    @Override
-    protected void search(String libraryIdentity, String query, int maxResults, Bundle paginationBundle, Result callback) {
-        if (mUpnpService != null) {
-            RemoteService rs = acquireContentDirectoryService(libraryIdentity);
-            if (rs != null) {
-                String searchFolder = mLibraryPrefs.getSearchFolder(libraryIdentity);
-                if (!TextUtils.isEmpty(searchFolder)) {
-                    // use preferred search folder
-                    doSearch(rs, searchFolder, query, maxResults, paginationBundle, callback);
+    protected void listSongsInFolder(@NonNull final String libraryIdentity,
+                                              final String folderIdentity,
+                                              final int maxResults,
+                                              final Bundle paginationBundle,
+                                     @NonNull final Result callback) {
+        bindUpnpService().subscribe(new Action1<AndroidUpnpService>() {
+            @Override
+            public void call(AndroidUpnpService upnpService) {
+                RemoteService rs = acquireContentDirectoryService(upnpService, libraryIdentity);
+                if (rs != null) {
+                    doBrowse(upnpService, rs, folderIdentity, maxResults, paginationBundle, callback, true);
                 } else {
-                    // lets see if there is a music only virtual folder
-                    requestFeatures(rs, new SearchCommand(rs, query, maxResults, paginationBundle, callback));
+                    try {
+                        callback.onError(new ParcelableException(UNKNOWN,
+                                new NullPointerException("Unable to obtain service id=" + libraryIdentity)));
+                    } catch (RemoteException ignored) {}
                 }
-                return;
             }
-        }
-        try {
-            callback.onError(new ParcelableException(RETRY, new Exception("Upnp Service not bound yet")));
-        } catch (RemoteException ignored) {}
-    }
-
-    /*
-     * Service Connection
-     */
-
-    @Override
-    public void onServiceConnected(ComponentName name, IBinder service) {
-        mUpnpService = (AndroidUpnpService) service;
-        if (mUpnpService != null) {
-            mUpnpService.getControlPoint().search();
-        }
+        });
     }
 
     @Override
-    public void onServiceDisconnected(ComponentName name) {
-        mUpnpService = null;
-        bindService(new Intent(this, UpnpServiceService.class), this, BIND_AUTO_CREATE);
+    protected void search(@NonNull final String libraryIdentity,
+                          @NonNull final String query,
+                                   final int maxResults,
+                                   final Bundle paginationBundle,
+                          @NonNull final Result callback) {
+        bindUpnpService().subscribe(new Action1<AndroidUpnpService>() {
+            @Override
+            public void call(AndroidUpnpService upnpService) {
+                RemoteService rs = acquireContentDirectoryService(upnpService, libraryIdentity);
+                if (rs != null) {
+                    String searchFolder = mLibraryPrefs.getSearchFolder(libraryIdentity);
+                    if (!TextUtils.isEmpty(searchFolder)) {
+                        // use preferred search folder
+                        doSearch(upnpService, rs, searchFolder, query, maxResults, paginationBundle, callback);
+                    } else {
+                        // lets see if there is a music only virtual folder
+                        requestFeatures(upnpService, rs, new SearchCommand(upnpService, rs, query, maxResults, paginationBundle, callback));
+                    }
+                } else {
+                    try {
+                        callback.onError(new ParcelableException(UNKNOWN,
+                                new NullPointerException("Unable to obtain service id=" + libraryIdentity)));
+                    } catch (RemoteException ignored) {}
+                }
+            }
+        });
     }
 
     /*
      *
      */
 
-    private RemoteService acquireContentDirectoryService(String deviceIdentity) {
-        RemoteDevice rd = mUpnpService.getRegistry().getRemoteDevice(UDN.valueOf(deviceIdentity), false);
+    private RemoteService acquireContentDirectoryService(final AndroidUpnpService upnpService,
+                                                         final String deviceIdentity) {
+        RemoteDevice rd = upnpService.getRegistry().getRemoteDevice(UDN.valueOf(deviceIdentity), false);
         if (rd != null) {
             RemoteService rs = rd.findService(new UDAServiceType("ContentDirectory", 1));
             if (rs != null) {
@@ -222,7 +257,9 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
         return null;
     }
 
-    private void requestFeatures(RemoteService service, final Command command) {
+    private void requestFeatures(final AndroidUpnpService upnpService,
+                                 final RemoteService service,
+                                 final Command command) {
         GetFeatureList req = new GetFeatureList(service) {
             @Override
             public void received(ActionInvocation actionInvocation, Features features) {
@@ -234,13 +271,17 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 command.execute(null);
             }
         };
-        if (mUpnpService != null) {
-            mUpnpService.getControlPoint().execute(req);
-        }
+        upnpService.getControlPoint().execute(req);
     }
 
     @DebugLog
-    private void doBrowse(RemoteService rs, String folderIdentity, final int maxResults, Bundle paginationBundle, final Result callback, final boolean songsOnly) {
+    private void doBrowse(final AndroidUpnpService upnpService,
+                          final RemoteService rs,
+                          final String folderIdentity,
+                          final int maxResults,
+                          final Bundle paginationBundle,
+                          final Result callback,
+                          final boolean songsOnly) {
         final int start = paginationBundle != null ? paginationBundle.getInt("start") : 0;
         final Browse browse = new Browse(rs, folderIdentity, BrowseFlag.DIRECT_CHILDREN, Browse.CAPS_WILDCARD, start, (long)maxResults) {
             @Override
@@ -331,12 +372,16 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 } catch (RemoteException ignored) { }
             }
         };
-        if (mUpnpService != null) {
-            mUpnpService.getControlPoint().execute(browse);
-        }
+        upnpService.getControlPoint().execute(browse);
     }
 
-    private void doSearch(RemoteService rs, String folderIdentity, String query, final int maxResults, Bundle paginationBundle, final Result callback) {
+    private void doSearch(final AndroidUpnpService upnpService,
+                          final RemoteService rs,
+                          final String folderIdentity,
+                          final String query,
+                          final int maxResults,
+                          final Bundle paginationBundle,
+                          final Result callback) {
         final int start = paginationBundle != null ? paginationBundle.getInt("start") : 0;
         final Search search = new Search(rs, folderIdentity,
                 "dc:title contains \"" + query + "\" or upnp:artist contains \""
@@ -426,11 +471,34 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
                 } catch (RemoteException ignored) { }
             }
         };
-        if (mUpnpService != null) {
-            mUpnpService.getControlPoint().execute(search);
-        }
+        upnpService.getControlPoint().execute(search);
     }
 
+    /**
+     *
+     */
+    final class Token implements ServiceConnection {
+        final AsyncSubject<AndroidUpnpService> subject;
+
+        private Token(AsyncSubject<AndroidUpnpService> subject) {
+            this.subject = subject;
+        }
+
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            AndroidUpnpService upnpService = (AndroidUpnpService) service;
+            if (upnpService != null) {
+                upnpService.getControlPoint().search();
+            }
+            subject.onNext(upnpService);
+            subject.onCompleted();
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            unbindUpnpService();
+        }
+    }
 
     /**
      *
@@ -443,12 +511,18 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
      *
      */
     abstract class UpnpCommand implements Command {
+        final AndroidUpnpService upnpService;
         final RemoteService service;
         final int maxResults;
         final Bundle paginationBudle;
         final Result callback;
 
-        UpnpCommand(RemoteService service, final int maxResults, Bundle paginationBundle, Result callback) {
+        UpnpCommand(AndroidUpnpService upnpService,
+                    RemoteService service,
+                    int maxResults,
+                    Bundle paginationBundle,
+                    Result callback) {
+            this.upnpService = upnpService;
             this.service = service;
             this.maxResults = maxResults;
             this.paginationBudle = paginationBundle;
@@ -482,13 +556,17 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
      */
     class BrowseCommand extends UpnpCommand {
 
-        BrowseCommand(RemoteService service, int maxResults, Bundle paginationBundle, Result callback) {
-            super(service, maxResults, paginationBundle, callback);
+        BrowseCommand(AndroidUpnpService upnpService,
+                      RemoteService service,
+                      int maxResults,
+                      Bundle paginationBundle,
+                      Result callback) {
+            super(upnpService, service, maxResults, paginationBundle, callback);
         }
 
         @Override
         void doExecute(String folderIdentity) {
-            doBrowse(service, folderIdentity, maxResults, paginationBudle, callback, false);
+            doBrowse(upnpService, service, folderIdentity, maxResults, paginationBudle, callback, false);
         }
 
     }
@@ -499,14 +577,19 @@ public class UpnpLibraryService extends RemoteLibraryService implements ServiceC
     class SearchCommand extends UpnpCommand {
         final String query;
 
-        SearchCommand(RemoteService service, String query, int maxResults, Bundle paginationBundle, Result callback) {
-            super(service, maxResults, paginationBundle, callback);
+        SearchCommand(AndroidUpnpService upnpService,
+                      RemoteService service,
+                      String query,
+                      int maxResults,
+                      Bundle paginationBundle,
+                      Result callback) {
+            super(upnpService, service, maxResults, paginationBundle, callback);
             this.query = query;
         }
 
         @Override
         void doExecute(String folderIdentity) {
-            doSearch(service, folderIdentity, query, maxResults, paginationBudle, callback);
+            doSearch(upnpService, service, folderIdentity, query, maxResults, paginationBudle, callback);
         }
     }
 
