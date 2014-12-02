@@ -73,7 +73,6 @@ import rx.subjects.AsyncSubject;
 
 import static org.opensilk.music.api.exception.ParcelableException.NETWORK;
 import static org.opensilk.music.api.exception.ParcelableException.RETRY;
-import static org.opensilk.music.api.exception.ParcelableException.UNKNOWN;
 
 /**
  * Created by drew on 6/8/14.
@@ -182,7 +181,7 @@ public class UpnpLibraryService extends RemoteLibraryService {
                     }
                 } else {
                     try {
-                        callback.onError(new ParcelableException(UNKNOWN,
+                        callback.onError(new ParcelableException(RETRY,
                                 new NullPointerException("Unable to obtain service id=" + libraryIdentity)));
                     } catch (RemoteException ignored) {}
                 }
@@ -204,7 +203,7 @@ public class UpnpLibraryService extends RemoteLibraryService {
                     doBrowse(upnpService, rs, folderIdentity, maxResults, paginationBundle, callback, true);
                 } else {
                     try {
-                        callback.onError(new ParcelableException(UNKNOWN,
+                        callback.onError(new ParcelableException(RETRY,
                                 new NullPointerException("Unable to obtain service id=" + libraryIdentity)));
                     } catch (RemoteException ignored) {}
                 }
@@ -233,7 +232,7 @@ public class UpnpLibraryService extends RemoteLibraryService {
                     }
                 } else {
                     try {
-                        callback.onError(new ParcelableException(UNKNOWN,
+                        callback.onError(new ParcelableException(RETRY,
                                 new NullPointerException("Unable to obtain service id=" + libraryIdentity)));
                     } catch (RemoteException ignored) {}
                 }
