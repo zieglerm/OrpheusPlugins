@@ -95,8 +95,8 @@ public class UpnpLibraryService extends RemoteLibraryService {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
         unbindUpnpService();
+        super.onDestroy();
     }
 
     synchronized Observable<AndroidUpnpService> bindUpnpService() {
