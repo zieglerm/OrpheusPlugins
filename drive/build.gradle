@@ -46,35 +46,40 @@ android {
         targetCompatibility JavaVersion.VERSION_1_7
     }
 
-    signingConfigs {
-        release {
-            def Properties keyProps = new Properties()
-            keyProps.load(new FileInputStream(file('../../KeyStore/release2.properties')))
-            storeFile file(keyProps["store"])
-            keyAlias keyProps["alias"]
-            storePassword keyProps["storePass"]
-            keyPassword keyProps["pass"]
-        }
-        debug {
-            def Properties keyProps = new Properties()
-            keyProps.load(new FileInputStream(file('../../KeyStore/debug2.properties')))
-            storeFile file(keyProps["store"])
-            keyAlias keyProps["alias"]
-            storePassword keyProps["storePass"]
-            keyPassword keyProps["pass"]
-        }
-    }
-
     buildTypes {
         debug {
             applicationIdSuffix ".debug"
             versionNameSuffix rootProject.getDebugVersionSuffix()
-            signingConfig signingConfigs.debug
-        }
-        release {
-            signingConfig signingConfigs.release
         }
     }
+
+    if (file('../../KeyStore').exists()) {
+        signingConfigs {
+            release {
+                def Properties keyProps = new Properties()
+                keyProps.load(new FileInputStream(file('../../KeyStore/release2.properties')))
+                storeFile file(keyProps["store"])
+                keyAlias keyProps["alias"]
+                storePassword keyProps["storePass"]
+                keyPassword keyProps["pass"]
+            }
+        }
+        buildTypes.release.signingConfig signingConfigs.release
+        signingConfigs {
+            debug {
+                def Properties keyProps = new Properties()
+                keyProps.load(new FileInputStream(file('../../KeyStore/debug2.properties')))
+                storeFile file(keyProps["store"])
+                keyAlias keyProps["alias"]
+                storePassword keyProps["storePass"]
+                keyPassword keyProps["pass"]
+            }
+        }
+        buildTypes.debug.signingConfig signingConfigs.debug
+    } else {
+        println "No KeyStore directory found! (You can ignore this warning if your name is not drew)"
+    }
+
 }
 
 robolectric {
