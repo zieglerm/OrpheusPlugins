@@ -78,7 +78,7 @@ public class FolderPickerActivity extends Activity implements ServiceConnection 
         bindService(new Intent().setComponent(mServiceComponent), this, BIND_AUTO_CREATE);
 
         // because i dont want to fuck with configuration changes
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
 
         setResult(RESULT_CANCELED, null);
     }

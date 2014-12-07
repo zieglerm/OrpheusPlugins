@@ -70,7 +70,7 @@ public class LibraryChooserActivity extends Activity {
         }
 
         // hack, no rotating, background task will leak activity
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
 
         setResult(RESULT_CANCELED);
 
