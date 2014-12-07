@@ -22,7 +22,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.0.0-rc1'
+        classpath 'com.android.tools.build:gradle:1.0.0-rc4'
         classpath 'com.jakewharton.hugo:hugo-plugin:1.1.0'
         classpath 'org.robolectric:robolectric-gradle-plugin:0.13.2'
 
@@ -35,7 +35,6 @@ allprojects {
     repositories {
         maven { url "../../m2/repository" }
         maven { url "http://4thline.org/m2" }
-        maven { url "https://repo.commonsware.com.s3.amazonaws.com" }
         mavenCentral()
         jcenter()
     }
