@@ -169,10 +169,11 @@ public class FileUtil {
 
     @NonNull
     public static Folder makeFolder(File base, File dir) {
+        final String[] children = dir.list();
         return new Folder.Builder()
                 .setIdentity(toRelativePath(base, dir))
                 .setName(dir.getName())
-                .setChildCount(dir.list().length)
+                .setChildCount(children != null ? children.length : 0)
                 .setDate(formatDate(dir.lastModified()))
                 .build();
     }
