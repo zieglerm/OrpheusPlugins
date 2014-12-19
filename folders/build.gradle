@@ -21,7 +21,7 @@ apply plugin: 'robolectric'
 // Versioning
 def versionMajor = 0
 def versionMinor = 2 //Mirror api version
-def versionPatch = 0
+def versionPatch = 1
 
 assert(versionMinor < 100) // Double digits
 assert(versionPatch < 1000)
@@ -64,7 +64,7 @@ version android.defaultConfig.versionName
 apply from: '../../maven_local.gradle'
 
 dependencies {
-    compile 'io.reactivex:rxandroid:0.22.0'
+    compile 'io.reactivex:rxandroid:0.23.0'
     // for library
     compile project(':../Orpheus:api')
     //When included in Orpheus
